@@ -1,0 +1,16 @@
+*~
+models/*
+logs/*
+logs0/*
+*__pycache__*
+#*
+*#
+*.#
+.#*
+tasks/Copy/checkpoints/*
+ipy.py
+*_bu
+*_bu.py
+*.orig
+*.pyc
+.python-version

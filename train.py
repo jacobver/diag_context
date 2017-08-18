@@ -121,7 +121,7 @@ def trainModel(model, trainData, validData, dataset, optim):
             report_loss += loss
             report_num_correct += num_correct
             report_tgt_words += num_words
-            #report_src_words += batch[0][1].data.sum()
+            # report_src_words += batch[0][1].data.sum()
             total_loss += loss
             total_num_correct += num_correct
             total_words += num_words
@@ -130,13 +130,13 @@ def trainModel(model, trainData, validData, dataset, optim):
                       (epoch, i + 1, len(trainData),
                        report_num_correct / report_tgt_words * 100,
                        math.exp(report_loss / report_tgt_words),
-                       #report_src_words / (time.time() - start),
-                       #report_tgt_words / (time.time() - start),
+                       # report_src_words / (time.time() - start),
+                       # report_tgt_words / (time.time() - start),
                        time.time() - start_time))
 
                 report_loss, report_tgt_words = 0, 0
                 report_src_words, report_num_correct = 0, 0
-                #start = time.time()
+                # start = time.time()
             if isnan(loss):
                 break
         return total_loss / total_words, total_num_correct / total_words
@@ -155,7 +155,7 @@ def trainModel(model, trainData, validData, dataset, optim):
         valid_ppl = math.exp(min(valid_loss, 100))
         print('Validation perplexity: %g' % valid_ppl)
         print('Validation accuracy: %g' % (valid_acc * 100))
-        #valid_ppl = 0
+        # valid_ppl = 0
 
         trn_ppls += [train_ppl]
         val_ppls += [valid_ppl]
@@ -193,7 +193,7 @@ def trainModel(model, trainData, validData, dataset, optim):
 
             return low_ppl, best_e, trn_ppls, val_ppls, checkpoint
         else:
-            #low_ppl = valid_ppl
+            # low_ppl = valid_ppl
             tollerance += 1
 
     return low_ppl, best_e, trn_ppls, val_ppls, checkpoint
@@ -222,9 +222,9 @@ def main():
         dataset['dicts'] = checkpoint['dicts']
 
     trainData = memories.Dataset(dataset['train']['src'],
-                                 dataset['train']['tgt'], opt.batch_size, opt.gpus)
+                                 dataset['train']['tgt'], opt.batch_size, opt.gpus, 1)
     validData = memories.Dataset(dataset['valid']['src'],
-                                 dataset['valid']['tgt'], opt.batch_size, opt.gpus,
+                                 dataset['valid']['tgt'], opt.batch_size, opt.gpus, 1,
                                  volatile=True)
 
     dicts = dataset['dicts']
@@ -245,7 +245,7 @@ def main():
     if opt.train_from:
         print('Loading model from checkpoint at %s' % opt.train_from)
         chk_model = checkpoint['model']
-        #generator_state_dict = chk_model.generator.state_dict()
+        # generator_state_dict = chk_model.generator.state_dict()
         model_state_dict = {k: v for k, v in chk_model.state_dict().items()
                             if 'generator' not in k}
         model.load_state_dict(model_state_dict)

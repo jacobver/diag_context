@@ -40,6 +40,9 @@ parser.add_argument('-report_every', type=int, default=1000,
 parser.add_argument('-context_size', type=int, default=2,
                     help="number of source sentences")
 
+parser.add_argument('-continu', type=int, default=1,
+                    help="if 1, output is 1dimensional")
+
 opt = parser.parse_args()
 
 torch.manual_seed(opt.seed)
@@ -142,16 +145,24 @@ def makeData(datafile, dicts):
             continue
 
         else:
-            srcwords = [dicts.convertToIdx(words,
-                                           onmt.Constants.UNK_WORD)]
-            tgtWords = [dicts.convertToIdx(words,
-                                           onmt.Constants.UNK_WORD,
-                                           onmt.Constants.BOS_WORD,
-                                           onmt.Constants.EOS_WORD)]
-            src += [src_queue]
+            srcwords = dicts.convertToIdx(words,
+                                          onmt.Constants.UNK_WORD)
+            tgtWords = dicts.convertToIdx(words,
+                                          onmt.Constants.UNK_WORD,
+                                          onmt.Constants.BOS_WORD,
+                                          onmt.Constants.EOS_WORD)
+            if opt.continu:
+                srcinput = []
+                for sen in src_queue:
+                    srcinput += sen.tolist()
+                    srcinput += [onmt.Constants.EOS]
+                src += [torch.LongTensor(srcinput[:-1])]
+
+            else:
+                src += [src_queue]
             sizes += [sum([src_sen.size(0) for src_sen in src_queue])]
-            tgt += tgtWords
-            src_queue = src_queue[1:] + srcwords
+            tgt += [tgtWords]
+            src_queue = src_queue[1:] + [srcwords]
             count += 1
 
         if count % opt.report_every == 0:

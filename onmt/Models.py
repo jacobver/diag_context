@@ -85,7 +85,9 @@ class Decoder(nn.Module):
                                      padding_idx=onmt.Constants.PAD)
         self.rnn = StackedLSTM(opt.layers, input_size,
                                opt.rnn_size, opt.dropout)
-        self.attn = onmt.modules.GlobalAttention(opt.rnn_size)
+        if opt.attn:
+            self.attn = onmt.modules.GlobalAttention(opt.rnn_size)
+        self.use_attn = opt.attn
         self.dropout = nn.Dropout(opt.dropout)
 
         self.hidden_size = opt.rnn_size
@@ -102,13 +104,15 @@ class Decoder(nn.Module):
         # self.input_feed=False
         outputs = []
         output = init_output
+        attn = None
         for emb_t in emb.split(1):
             emb_t = emb_t.squeeze(0)
             if self.input_feed:
                 emb_t = torch.cat([emb_t, output], 1)
 
             output, hidden = self.rnn(emb_t, hidden)
-            output, attn = self.attn(output, context.t())
+            if self.use_attn:
+                output, attn = self.attn(output, context.t())
             output = self.dropout(output)
             outputs += [output]
 

@@ -91,7 +91,7 @@ class NSE(nn.Module):
 class MMA_NSE(nn.Module):
 
     def __init__(self, opt):
-        super(MMA_NSE, self).__init__()
+        super(NSE, self).__init__()
 
         self.layers = opt.layers
         self.input_feed = opt.input_feed

@@ -16,14 +16,14 @@ def experiment(opt, n_exp):
     opt.seed = randint(1, 10000)
 
     f = open(log_fn, 'a')
-    print(' ==============================================================\n', file=f)
-    print(' experiment %d - %s ' % (n_exp, str(opt.mem)))
+    print(' \n\n **********  experiment %d - %s *****************************\n ' %
+          (n_exp, str(opt.mem)), file=f)
     print(' start experiment: %d' % n_exp, file=f)
     print(' data: ' + str(opt.data), file=f)
     f.close()
 
     train.opt = opt
-    #cur_ppl, epoch, trn_ppls, val_ppls, checkpoint, opt, nparams = 7 * [None]
+    #cur_ppl, epoch, trn_ppls, val_ppls, checkpoint, opt, nparams = 7 * [0]
     cur_ppl, epoch, trn_ppls, val_ppls, checkpoint, opt, nparams = train.main()
     opt = train.opt
     f = open(log_fn, 'a')
@@ -36,7 +36,7 @@ def experiment(opt, n_exp):
 
     try:
         res_dict = torch.load(dict_fn)
-        last_exp_n = max(res_dict.keys()) + 1
+        last_exp_n = max(res_dict.keys())
     except FileNotFoundError:
         res_dict = {}
         last_exp_n = 0
@@ -52,16 +52,22 @@ def experiment(opt, n_exp):
     torch.save(res_dict, dict_fn)
 
 
-def baseline():
+def baseline(n_exp):
     opt.mem = 'lstm_lstm'
-    opt.attn = 1
     opt.dropout = .4
-    for n_exp in range(3):
+    for attn in [1, 0]:
+        opt.attn = attn
+        opt.input_feed = attn
+
         experiment(opt, n_exp)
 
 
 def dnc_dnc():
     opt.share_M = 1
+    opt.batch_size = 32
+    opt.mem_size = 100
+    opt.mem_slots = 40
+    #opt.read_heads = 2
     opt.mem = 'dnc_dnc'
     for n_exp in range(3):
         experiment(opt, n_exp)
@@ -69,7 +75,6 @@ def dnc_dnc():
 
 def nse_nse():
     opt.mem = 'nse_nse'
-    opt.context_size = 2
     opt.batch_size = 32
     for n_exp in range(3):
         experiment(opt, n_exp)
@@ -81,10 +86,18 @@ if __name__ == "__main__":
 
     parser = option_parse.get_parser()
     opt = parser.parse_args()
+    opt.pre_word_vecs = workdir + 'data/switchboard/swsu_cont_small.emb.pt'
 
-    opt.data = workdir + 'data/switchboard/sw_subutts_cz2.train.pt'
-    opt.pre_word_vecs = workdir + 'data/switchboard/sw_subutts_cz2.src.emb.pt'
+    for n in range(3):
+        for context_size in [1, 2, 3, 4, 5, 7, 9, 11]:
+            opt.data = '%sdata/switchboard/swsu_cont_cs%d_small.train.pt' % (
+                workdir, context_size)
+            opt.context_size = context_size
+            if context_size > 3:
+                opt.batch_size = 32
+                if context_size > 7:
+                    opt.batch_size = 16
 
-    # baseline()
-    # dnc_dnc()
-    nse_nse()
+            baseline(n)
+        # dnc_dnc()
+        # nse_nse()

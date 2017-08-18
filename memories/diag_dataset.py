@@ -8,7 +8,7 @@ import onmt
 
 
 class Dataset(object):
-    def __init__(self, srcData, tgtData, batchSize, cuda, volatile=False):
+    def __init__(self, srcData, tgtData, batchSize, cuda, context_size, volatile=False):
         self.src = srcData
         if tgtData:
             self.tgt = tgtData
@@ -20,6 +20,7 @@ class Dataset(object):
         self.batchSize = batchSize
         self.numBatches = math.ceil(len(self.src) / batchSize)
         self.volatile = volatile
+        self.context_size = context_size
 
     def _batchify(self, data, align_right=False):
         lengths = [x.size(0) for x in data]
@@ -49,9 +50,12 @@ class Dataset(object):
 
     def __getitem__(self, index):
         assert index < self.numBatches, "%d > %d" % (index, self.numBatches)
-        srcBatch = self._batchify_context(
-            self.src[index * self.batchSize:(index + 1) * self.batchSize], align_right=True)
-
+        if self.context_size > 1:
+            srcBatch = self._batchify_context(
+                self.src[index * self.batchSize:(index + 1) * self.batchSize], align_right=True)
+        else:
+            srcBatch = self._batchify(
+                self.src[index * self.batchSize:(index + 1) * self.batchSize], align_right=True)
         if self.tgt:
             tgtBatch = self._batchify(
                 self.tgt[index * self.batchSize:(index + 1) * self.batchSize])

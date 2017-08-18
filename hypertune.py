@@ -43,8 +43,7 @@ def specific_options(opt):
     if 'dnc' in opt.mem:
         opt.share_M = randint(2)
 
-        opt.word_vec_size = int(choice([200, 300, 400, 500, 600]))
-        opt.rnn_size = int(choice([200, 300, 400, 500, 600]))
+        opt.rnn_size = int(choice([300, 400, 500, 600]))
         opt.layers = randint(2) + 1
 
         ok_size = False
@@ -58,8 +57,8 @@ def specific_options(opt):
 
             ok_size = opt.read_heads * opt.mem_slots * opt.mem_size < 6000
 
-    if'lstm' in opt.mem and opt.mem[-3] != 'n2n':
-        opt.attn = uniform() // .7
+    if'lstm' in opt.mem:
+        opt.attn = 1
 
     if 'n2n' in opt.mem:
         opt.linear_start = 0
@@ -94,24 +93,18 @@ if __name__ == "__main__":
             parser = option_parse.get_parser()
             opt = parser.parse_args()
 
-            opt.brnn = randint(2)
-            opt.dropout = round(uniform(.1, .7), 2)
+            opt.dropout = round(uniform(.2, .7), 2)
             opt.learning_rate = round(uniform(1e-5, 5e-3), 6)
             opt.learning_rate_decay = round(uniform(.4, .8), 2)
             opt.start_decay_at = randint(8, 32)
             opt.curriculum = randint(2, 10)
-            opt.input_feed = uniform() // .3
-            if uniform() // .3:
-                opt.pre_word_vecs_enc = 'data/multi30k.atok.low.src.emb.pt'
-                #opt.pre_word_vecs_enc = 'data/en.de.200k.atok.low.src.emb.pt'
-                opt.word_vec_size = 300
-                opt.rnn_size = 300
-            else:
-                opt.pre_word_vecs_enc = None
+            opt.input_feed = uniform() // .7
 
             (std_dict, opt_dict) = specific_options(opt)
 
             ok_params = check_params(opt_dict, prev_opts, std_dict)
+
+        opt.input_feed = opt.attn
 
         print(' start try: ' + str(tries))
 

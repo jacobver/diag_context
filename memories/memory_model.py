@@ -34,9 +34,8 @@ class MemModel(nn.Module):
 
         M = self.encoder.make_init_M(batch_size)
 
-        for sen in src.split(1):
-            emb_in = self.word_lut(sen.squeeze(0))
-            context, hidden, M = self.encoder(emb_in, hidden, M)
+        emb_in = self.word_lut(src)
+        context, hidden, M = self.encoder(emb_in, hidden, M)
 
         init_output = self.make_init_decoder_output(emb_in[0])
 
@@ -57,7 +56,7 @@ class MemModel(nn.Module):
         for sen in src.split(1):
             emb_in = self.word_lut(sen.squeeze(0))
             mask = sen.transpose(0, 1).eq(0).detach()
-            M = emb_in.clone().transpose(0, 1).detach()
+            M = emb_in.clone().transpose(0, 1)  # .detach()
             context, hidden, enc_M = self.encoder(
                 emb_in, hidden, (M, mask))
             mem_queue += [(enc_M, mask)]
@@ -78,13 +77,10 @@ class MemModel(nn.Module):
         init_h = self.make_init_hidden(
             src[0], tgt.size(1), self.decoder.hidden_size, 2)
         hidden = (torch.stack(init_h[0]), torch.stack(init_h[1]))
-        contexts = []
-        for sen in src.split(1):
-            emb_in = self.word_lut(sen.squeeze(0))
-            c, hidden = self.encoder(emb_in, hidden)
-            contexts += [c]
 
-        context = torch.cat(contexts, 0)
+        emb_in = self.word_lut(src)
+        context, hidden = self.encoder(emb_in, hidden)
+
         init_output = self.make_init_decoder_output(emb_in[0])
 
         out, dec_hidden, _attn = self.decoder(tgt, hidden,
@@ -129,22 +125,12 @@ class MemModel(nn.Module):
             opt.rnn_size = opt.word_vec_size
             return nse.NSE(opt)
 
-        elif enc == 'n2n':
-            opt.layers = 1
-            utt_emb_sz = (dicts['src'].size(), opt.word_vec_size)
-            self.embed_A = nn.Embedding(*utt_emb_sz)
-            self.embed_C = nn.Embedding(*utt_emb_sz)
-
-            return n2n.N2N(opt)
-
         elif enc == 'dnc':
             if opt.mem == 'dnc_lstm':
                 opt.rnn_size = opt.word_vec_size
             return dnc.DNC(opt)
 
         elif enc == 'lstm':
-            if opt.mem != 'lstm_lstm':
-                opt.layers = 2
             opt.rnn_size = opt.word_vec_size
             return nn.LSTM(opt.word_vec_size, opt.word_vec_size, num_layers=2)
         #Models.Encoder(opt, dicts['src'])

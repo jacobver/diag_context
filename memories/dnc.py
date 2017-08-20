@@ -153,10 +153,10 @@ class DNC(nn.Module):
         return mem
 
     def make_init_hidden(self, inp, l1_sz, l2_sz=None):
-        h0 = Variable(inp.data.new(inp.size(1), l1_sz).float().zero_(),
+        h0 = Variable(inp.data.new(inp.size(0), l1_sz).float().zero_(),
                       requires_grad=False)
         if l2_sz is not None:
-            h1 = Variable(inp.data.new(inp.size(1), l2_sz).float().zero_(),
+            h1 = Variable(inp.data.new(inp.size(0), l2_sz).float().zero_(),
                           requires_grad=False)
             return ((h0, h0.clone()), (h1, h1.clone()))
         return (h0, h0.clone())

@@ -50,7 +50,7 @@ def specific_options(opt):
         while not ok_size:
             opt.read_heads = randint(1, 4)
             std.read_heads = 1
-            opt.mem_slots = randint(10, 50)
+            opt.mem_slots = randint(15, 150)
             std.mem_slots = 5
             opt.mem_size = randint(50, 500)
             std.mem_size = 50
@@ -69,8 +69,13 @@ def specific_options(opt):
 
 
 if __name__ == "__main__":
+    workdir = '../'
+    # workdir = '/var/scratch/jverdega/'
+
     parser = option_parse.get_parser()
     opt = parser.parse_args()
+    opt.pre_word_vecs = workdir + 'data/switchboard/swsu_cont_small.emb.pt'
+    opt.data = '%sdata/switchboard/swsu_cont_cs4_small.train.pt' % workdir
 
     tries = 0
     low_ppl = 100000
@@ -90,15 +95,15 @@ if __name__ == "__main__":
     while True:  # low_ppl > 4 or tries < 64:
         ok_params = False
         while not ok_params:
-            parser = option_parse.get_parser()
-            opt = parser.parse_args()
+            #parser = option_parse.get_parser()
+            #opt = parser.parse_args()
 
-            opt.dropout = round(uniform(.2, .7), 2)
+            opt.dropout = round(uniform(.3, .7), 2)
             opt.learning_rate = round(uniform(1e-5, 5e-3), 6)
             opt.learning_rate_decay = round(uniform(.4, .8), 2)
             opt.start_decay_at = randint(8, 32)
             opt.curriculum = randint(2, 10)
-            opt.input_feed = uniform() // .7
+            # opt.input_feed = uniform() // .7
 
             (std_dict, opt_dict) = specific_options(opt)
 

@@ -36,7 +36,7 @@ def experiment(opt, n_exp):
 
     try:
         res_dict = torch.load(dict_fn)
-        last_exp_n = max(res_dict.keys())
+        last_exp_n = max(res_dict.keys()) + 1
     except FileNotFoundError:
         res_dict = {}
         last_exp_n = 0
@@ -62,15 +62,15 @@ def baseline(n_exp):
         experiment(opt, n_exp)
 
 
-def dnc_dnc():
+def dnc_dnc(n_exp):
     opt.share_M = 1
-    opt.batch_size = 32
     opt.mem_size = 100
-    opt.mem_slots = 40
-    #opt.read_heads = 2
+    opt.mem_slots = 50
+    opt.read_heads = 2
+    opt.rnn_size = 500
     opt.mem = 'dnc_dnc'
-    for n_exp in range(3):
-        experiment(opt, n_exp)
+    opt.input_feed = 0
+    experiment(opt, n_exp)
 
 
 def nse_nse():
@@ -94,10 +94,10 @@ if __name__ == "__main__":
                 workdir, context_size)
             opt.context_size = context_size
             if context_size > 3:
-                opt.batch_size = 32
+                opt.batch_size = 16
                 if context_size > 7:
-                    opt.batch_size = 16
+                    opt.batch_size = 8
 
-            baseline(n)
-        # dnc_dnc()
+            # baseline(n)
+            dnc_dnc()
         # nse_nse()

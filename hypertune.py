@@ -44,7 +44,7 @@ def specific_options(opt):
         opt.share_M = randint(2)
 
         opt.rnn_size = int(choice([300, 400, 500, 600]))
-        opt.layers = randint(2) + 1
+        opt.layers = 2  # randint(2) + 1
 
         ok_size = False
         while not ok_size:

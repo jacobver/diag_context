@@ -5,20 +5,27 @@ import torch
 from numpy.random import randint
 
 
-def experiment(opt, n_exp):
-    data_name = '.'.join(opt.data.split('/')[-1].split('.')[:-2])
+def experiment(opt):
+    data_name = 'frms'  # '.'.join(opt.data.split('/')[-1].split('.')[:-2])
     mem_str = opt.mem if opt.mem is not None else 'baseline'
     fname_extention = '%s_%s' % (mem_str, data_name)
 
-    log_fn = workdir + 'logs/experiments_res_' + fname_extention + '.log'
-    dict_fn = workdir + 'logs/experiments_res_%s.pt' % fname_extention
+    log_fn = workdir + 'logs/exps_res_cs_%s.log' % fname_extention
+    dict_fn = workdir + 'logs/exp_res_cs_%s.pt' % fname_extention
 
     opt.seed = randint(1, 10000)
 
+    try:
+        res_dict = torch.load(dict_fn)
+        exp_n = max(res_dict.keys()) + 1
+    except FileNotFoundError:
+        res_dict = {}
+        exp_n = 0
+
     f = open(log_fn, 'a')
     print(' \n\n **********  experiment %d - %s *****************************\n ' %
-          (n_exp, str(opt.mem)), file=f)
-    print(' start experiment: %d' % n_exp, file=f)
+          (exp_n, str(opt.mem)), file=f)
+    print(' \n ***** start experiment: %d' % exp_n)
     print(' data: ' + str(opt.data), file=f)
     f.close()
 
@@ -27,19 +34,12 @@ def experiment(opt, n_exp):
     cur_ppl, epoch, trn_ppls, val_ppls, checkpoint, opt, nparams = train.main()
     opt = train.opt
     f = open(log_fn, 'a')
-
+    print(opt, file=f)
+    print(' - - - - - - - - - - - -- - - - - - - - -- - - - - - - - - - ')
     print('low ppl: %f \n number of params: %d \n epoch: %d\n train ppls: %s \n vaild ppls: %s \n'
           % (cur_ppl, nparams, epoch, str(trn_ppls), str(val_ppls)), file=f)
-    print(opt, file=f)
     print('\n===========================================================\n\n', file=f)
     f.close()
-
-    try:
-        res_dict = torch.load(dict_fn)
-        exp_n = max(res_dict.keys()) + 1
-    except FileNotFoundError:
-        res_dict = {}
-        exp_n = 0
 
     res_dict[exp_n] = {}
     res_dict[exp_n]['nparams'] = nparams
@@ -51,14 +51,14 @@ def experiment(opt, n_exp):
     torch.save(res_dict, dict_fn)
 
 
-def baseline(n_exp):
+def baseline():
     opt.mem = 'lstm_lstm'
     opt.dropout = .4
     for attn in [1, 0]:
         opt.attn = attn
         opt.input_feed = attn
 
-        experiment(opt, n_exp)
+        experiment(opt)
 
 
 def dnc_dnc():
@@ -72,24 +72,16 @@ def dnc_dnc():
     experiment(opt)
 
 
-def nse_nse():
-    opt.mem = 'nse_nse'
-    opt.batch_size = 32
-    for n_exp in range(3):
-        experiment(opt, n_exp)
-
-
 if __name__ == "__main__":
     workdir = '../'
     # workdir = '/var/scratch/jverdega/'
 
     parser = option_parse.get_parser()
     opt = parser.parse_args()
-    opt.pre_word_vecs = workdir + 'data/switchboard/swsu_cont_small.emb.pt'
 
     for n in range(3):
         for context_size in [1, 2, 3, 4, 5, 7, 9, 11]:
-            opt.data = '%sdata/switchboard/swsu_cont_cs%d_small.train.pt' % (
+            opt.data = '%sdata/frames/frms_cs%d.train.pt' % (
                 workdir, context_size)
             opt.context_size = context_size
             if context_size > 3:
@@ -97,6 +89,6 @@ if __name__ == "__main__":
                 if context_size > 7:
                     opt.batch_size = 8
 
-            # baseline(n)
-            dnc_dnc()
+            baseline()
+            # dnc_dnc()
         # nse_nse()

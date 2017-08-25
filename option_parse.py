@@ -69,7 +69,7 @@ def get_parser():
                         shuffle and re-assign mini-batches""")
 
     # learning rate
-    parser.add_argument('-learning_rate', type=float, default=0.001,
+    parser.add_argument('-learning_rate', type=float, default=0.0005,
                         help="""Starting learning rate. If adagrad/adadelta/adam is
                         used, then this is the global learning rate. Recommended
                         settings: sgd = 1, adagrad = 0.1,
@@ -79,7 +79,7 @@ def get_parser():
                         this much if (i) perplexity does not decrease on the
                         validation set or (ii) epoch has gone past
                         start_decay_at""")
-    parser.add_argument('-start_decay_at', type=int, default=12,
+    parser.add_argument('-start_decay_at', type=int, default=9,
                         help="""Start decaying every epoch after and including this
                         epoch""")
 
@@ -93,7 +93,7 @@ def get_parser():
     parser.add_argument('-gpus', default=[0], nargs='+', type=int,
                         help="Use CUDA on the listed devices.")
 
-    parser.add_argument('-log_interval', type=int, default=50,
+    parser.add_argument('-log_interval', type=int, default=10,
                         help="Print stats at this interval.")
 
     # Memory options

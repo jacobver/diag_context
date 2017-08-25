@@ -7,10 +7,10 @@ from onmt.modules import GlobalAttention
 
 
 class DNC(nn.Module):
-    def __init__(self, opt):
+    def __init__(self, opt, mode):
         super(DNC, self).__init__()
 
-        self.input_feed = opt.input_feed if opt.seq == 'decoder' else 0
+        self.input_feed = opt.input_feed if mode == 'decode' else 0
         self.rnn_sz = (opt.word_vec_size, None) if opt.layers == 1 else (
             opt.rnn_size, opt.word_vec_size)
         self.layers = opt.layers
@@ -103,6 +103,7 @@ class DNC(nn.Module):
 
             out = self.dropout(out)
 
+            attn = None
             if context is not None and self.attn is not None:
                 out, attn = self.attn(out, context.t())
 

@@ -96,7 +96,7 @@ def makeData(datafile, dicts):
 
     src, tgt = [], []
     sizes = []
-    count, ignored = 0, 0
+    count, ignored = 1, 0
 
     print('Processing %s ...' % (datafile))
     data = open(datafile)
@@ -113,7 +113,7 @@ def makeData(datafile, dicts):
 
     def init_src_queue():
         src_queue = []
-        while len(src_queue) < opt.context_size:
+        while len(src_queue) <= opt.context_size:
             sen = process_line(data.readline())
             if sen == 'eof':
                 return False
@@ -133,6 +133,7 @@ def makeData(datafile, dicts):
     while True:
 
         words = process_line(data.readline())
+        # print(words)
 
         if words == 'eof':
             break
@@ -144,7 +145,8 @@ def makeData(datafile, dicts):
             ignored += 1
             continue
 
-        else:
+        elif len(src_queue) == opt.context_size:
+            print(' converting words')
             srcwords = dicts.convertToIdx(words,
                                           onmt.Constants.UNK_WORD)
             tgtWords = dicts.convertToIdx(words,
@@ -154,6 +156,7 @@ def makeData(datafile, dicts):
             if opt.continu:
                 srcinput = []
                 for sen in src_queue:
+                    print(' sen : ' + str(type(sen)) + ' ' + str(sen.size()))
                     srcinput += sen.tolist()
                     srcinput += [onmt.Constants.EOS]
                 src += [torch.LongTensor(srcinput[:-1])]
@@ -207,7 +210,8 @@ def main():
     if opt.src_vocab is None:
         saveVocabulary('source', dicts['src'], opt.save_data + '.src.dict')
 
-    print('Saving data to \'' + opt.save_data + '.train.pt\'...')
+    print('Saving data to \'' + opt.save_data + '_cs' +
+          str(opt.context_size) + '.train.pt\'...')
     save_data = {'dicts': dicts,
                  'train': train,
                  'valid': valid}

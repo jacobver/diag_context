@@ -47,7 +47,7 @@ class Beam(object):
         "Get the backpointers for the current timestep."
         return self.prevKs[-1]
 
-    def advance(self, wordLk, attnOut):
+    def advance(self, wordLk, attnOut=None):
         """
         Given prob over words for every last beam `wordLk` and attention
         `attnOut`: Compute and update the beam search.
@@ -78,7 +78,8 @@ class Beam(object):
         prevK = bestScoresId / numWords
         self.prevKs.append(prevK)
         self.nextYs.append(bestScoresId - prevK * numWords)
-        self.attn.append(attnOut.index_select(0, prevK))
+        if attnOut is not None:
+            self.attn.append(attnOut.index_select(0, prevK))
 
         # End condition is when top-of-beam is EOS.
         if self.nextYs[-1][0] == onmt.Constants.EOS:
@@ -111,7 +112,7 @@ class Beam(object):
         hyp, attn = [], []
         # print(len(self.prevKs), len(self.nextYs), len(self.attn))
         for j in range(len(self.prevKs) - 1, -1, -1):
-            hyp.append(self.nextYs[j+1][k])
+            hyp.append(self.nextYs[j + 1][k])
             attn.append(self.attn[j][k])
             k = self.prevKs[j][k]
 

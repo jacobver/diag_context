@@ -36,18 +36,17 @@ def experiment(opt, n_exp):
 
     try:
         res_dict = torch.load(dict_fn)
-        last_exp_n = max(res_dict.keys()) + 1
+        exp_n = max(res_dict.keys()) + 1
     except FileNotFoundError:
         res_dict = {}
-        last_exp_n = 0
+        exp_n = 0
 
-    n_exp += last_exp_n
-    res_dict[n_exp] = {}
-    res_dict[n_exp]['nparams'] = nparams
-    res_dict[n_exp]['trn_ppls'] = trn_ppls
-    res_dict[n_exp]['val_ppls'] = val_ppls
-    res_dict[n_exp]['args'] = vars(opt)
-    res_dict[n_exp]['checkpoint'] = checkpoint
+    res_dict[exp_n] = {}
+    res_dict[exp_n]['nparams'] = nparams
+    res_dict[exp_n]['trn_ppls'] = trn_ppls
+    res_dict[exp_n]['val_ppls'] = val_ppls
+    res_dict[exp_n]['args'] = vars(opt)
+    res_dict[exp_n]['checkpoint'] = checkpoint
 
     torch.save(res_dict, dict_fn)
 
@@ -62,7 +61,7 @@ def baseline(n_exp):
         experiment(opt, n_exp)
 
 
-def dnc_dnc(n_exp):
+def dnc_dnc():
     opt.share_M = 1
     opt.mem_size = 100
     opt.mem_slots = 50
@@ -70,7 +69,7 @@ def dnc_dnc(n_exp):
     opt.rnn_size = 500
     opt.mem = 'dnc_dnc'
     opt.input_feed = 0
-    experiment(opt, n_exp)
+    experiment(opt)
 
 
 def nse_nse():

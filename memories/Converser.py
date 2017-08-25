@@ -25,6 +25,8 @@ class Converser(object):
         self.src_dict = checkpoint['dicts']['src']
         self.tgt_dict = checkpoint['dicts']['tgt']
 
+        model_opt.pre_word_vecs = '../data/' + \
+            '/'.join(model_opt.pre_word_vecs.split('/')[-2:])
         model = memories.memory_model.MemModel(
             model_opt, checkpoint['dicts'])
 
@@ -50,8 +52,8 @@ class Converser(object):
 
     def buildData(self, srcBatch, goldBatch):
         # This needs to be the same as preprocess.py.
-        srcData = [[self.src_dict.convertToIdx(
-            s, onmt.Constants.UNK_WORD) for s in b] for b in srcBatch]
+        srcData = [self.src_dict.convertToIdx(
+            b, onmt.Constants.UNK_WORD) for b in srcBatch]
         tgtData = None
         if goldBatch:
             tgtData = [self.tgt_dict.convertToIdx(b,
@@ -60,10 +62,9 @@ class Converser(object):
                                                   onmt.Constants.EOS_WORD) for b in goldBatch]
 
         return memories.Dataset(srcData, tgtData, self.opt.batch_size,
-                                self.opt.cuda, volatile=True)
+                                self.opt.cuda, 1, volatile=True)
 
     def buildTargetTokens(self, pred, src, attn=None):
-        print(' in build tt : ' + str(pred))
         tokens = self.tgt_dict.convertToLabels(pred, onmt.Constants.EOS)
         tokens = tokens[:-1]  # EOS
         if self.opt.replace_unk:
@@ -73,77 +74,211 @@ class Converser(object):
                     tokens[i] = src[maxIndex[0]]
         return tokens
 
-    def translateBatch(self, src, tgt):
+    def translateBatch(self, srcBatch, tgtBatch):
 
-        #  (1) run the encoder on the src
-        batch_size = tgt.size(1)
-        hidden = self.model.encoder.make_init_hidden(
-            src[0], *self.model.encoder.rnn_sz)
-
-        M = self.model.encoder.make_init_M(batch_size)
-
-        for sen in src.split(1):
-            emb_in = self.model.word_lut(sen.squeeze(0))
-            context, hidden, M = self.model.encoder(emb_in, hidden, M)
-
-        # Drop the lengths needed for encoder.
-
-        rnnSize = context.size(2)
+        batchSize = srcBatch.size(1)
+        beamSize = self.opt.beam_size
 
         decoder = self.model.decoder
+        attentionLayer = decoder.attn
+        useMasking = self.opt.mem == 'lstm_lstm' and self.model.decoder.use_attn
+
+        def lstm_encoder(src):
+            emb_in = self.model.word_lut(src)
+
+            init_h = self.model.make_init_hidden(
+                emb_in[0], src.size(1), self.model.decoder.hidden_size, 2)
+            hidden = (torch.stack(init_h[0]), torch.stack(init_h[1]))
+
+            context, hidden = self.model.encoder(emb_in, hidden)
+
+            return context, hidden
+
+        def lstm_decoder(tgt, hidden, context, decOut):
+
+            if useMasking:
+                padMask = srcBatch.data.eq(onmt.Constants.PAD).t()
+                attentionLayer.applyMask(padMask)
+
+            out, dec_hidden, _attn = self.model.decoder(
+                tgt, hidden, context, decOut)
+
+            return out, dec_hidden, _attn
+
+        def dnc_encoder(src):
+            batch_size = src.size(1)
+            hidden = self.model.encoder.make_init_hidden(
+                src[0], *self.model.encoder.rnn_sz)
+
+            M = self.model.encoder.make_init_M(batch_size)
+
+            emb_in = self.model.word_lut(src)
+            return self.model.encoder(emb_in, hidden, M)
+
+        #  (1) run the encoder on the src
+        if self.opt.mem == 'lstm_lstm':
+            context, encStates = lstm_encoder(srcBatch)
+        elif self.opt.mem == 'dnc_dnc':
+            context, encStates, M = dnc_encoder(srcBatch)
+
+        rnnSize = encStates[0][0].size(1)
 
         #  (2) if a target is specified, compute the 'goldScore'
         #  (i.e. log likelihood) of the target under the model
-        goldScores = context.data.new(batch_size).zero_()
+        goldScores = encStates[0][0].data.new(batchSize).zero_()
+        if tgtBatch is not None:
+            decStates = encStates
+            decM = M
+            if self.opt.mem == 'lstm_lstm':
+                init_output = self.model.make_init_decoder_output(context[0])
+                decOut, decStates, attn = lstm_decoder(
+                    tgtBatch[:-1], decStates, context, init_output)
+            elif self.opt.mem == 'dnc_dnc':
+                emb_out = self.model.word_lut(tgtBatch[:-1])
+                decOut, decStates, decM = self.model.decoder(
+                    emb_out, decStates, decM)
 
-        if tgt is not None:
-            dec_output = self.model.make_init_decoder_output(emb_in[0])
-            init_output = self.model.make_init_decoder_output(emb_in[0])
-            dec_hidden = hidden
-            dec_M = M
-            emb_out = self.model.word_lut(tgt[:-1])
-            # print(' emb_out.size : ' + str(emb_out.size()))
-            outputs, dec_hidden, dec_M = self.model.decoder(
-                emb_out, dec_hidden, dec_M, init_output)
-            # decOut, decStates, attn = self.model.decoder(
-            #    tgt[:-1], decStates, context, initOutput)
-            for dec_t, tgt_t in zip(outputs, tgt[1:].data):
+            for dec_t, tgt_t in zip(decOut, tgtBatch[1:].data):
                 gen_t = self.model.generator.forward(dec_t)
                 tgt_t = tgt_t.unsqueeze(1)
                 scores = gen_t.data.gather(1, tgt_t)
                 scores.masked_fill_(tgt_t.eq(onmt.Constants.PAD), 0)
                 goldScores += scores
 
+        print(' == got gold ==')
         #  (3) run the decoder to generate sentences, using beam search
-        decOut = emb_out[0].unsqueeze(0)  # BOS
-        # print(tgt[0])
-        # batchIdx = list(range(batchSize))
-        # remainingSents = batchSize
-        dec_hidden = hidden
-        dec_M = M
 
-        reply = []
+        # Expand tensors for each beam.
+        if self.opt.mem == 'lstm_lstm':
+            context = Variable(context.data.repeat(1, beamSize, 1))
+        elif self.opt.mem == 'dnc_dnc':
+            decM = {}
+            for k in M.keys():
+                print(k)
+                dims = M[k].dim()
+                if dims == 3:
+                    decM[k] = Variable(M[k].data.repeat(beamSize, 1, 1))
+                elif dims == 2:
+                    decM[k] = Variable(M[k].data.repeat(beamSize, 1))
+            print(' -- M:')
+            [print(k, M[k].size()) for k in M.keys()]
+            print(' -- decM:')
+            [print(k, decM[k].size()) for k in decM.keys()]
+
+        decStates = ((Variable(encStates[0][0].data.repeat(beamSize, 1)),
+                      Variable(encStates[0][1].data.repeat(beamSize, 1))),
+                     (Variable(encStates[1][0].data.repeat(beamSize, 1)),
+                      Variable(encStates[1][1].data.repeat(beamSize, 1))))
+
+        beam = [onmt.Beam(beamSize, self.opt.cuda) for k in range(batchSize)]
+
+        decOut = self.model.make_init_decoder_output(
+            decStates[0][0])  # .squeeze(0))
+
+        if useMasking:
+            padMask = srcBatch.data.eq(
+                onmt.Constants.PAD).t().unsqueeze(0).repeat(beamSize, 1, 1)
+
+        batchIdx = list(range(batchSize))
+        remainingSents = batchSize
         for i in range(self.opt.max_sent_length):
-            # Prepare decoder input.
-            decOut, dec_hidden, dec_M = self.model.decoder(
-                decOut, dec_hidden, dec_M, dec_output)
+            if useMasking:
+                attentionLayer.applyMask(padMask)
+                # Prepare decoder input.
+            input = torch.stack([b.getCurrentState() for b in beam
+                                 if not b.done]).t().contiguous().view(1, -1)
+            if self.opt.mem == 'lstm_lstm':
+                decOut, decStates, attn = self.model.decoder(
+                    Variable(input, volatile=True), decStates, context, decOut)
+            elif self.opt.mem == 'dnc_dnc':
+                inp = self.model.word_lut(Variable(input, volatile=True))
+                decOut, decStates, decM = self.model.decoder(
+                    inp, decStates, decM)
             # decOut: 1 x (beam*batch) x numWords
-            dec_output = decOut.squeeze(0)
-            out = self.model.generator.forward(dec_output)
-            reply += [out]
+            decOut = decOut.squeeze(0)
+            out = self.model.generator.forward(decOut)
 
-        reply = torch.stack(reply, 1)
-        return self.get_idxs(reply)
+            # batch x beam x numWords
+            wordLk = out.view(beamSize, remainingSents, -1) \
+                .transpose(0, 1).contiguous()
+            if self.opt.mem == 'lstm_lstm':
+                attn = attn.view(beamSize, remainingSents, -1) \
+                           .transpose(0, 1).contiguous()
+            else:
+                attn = None
 
-    def get_idxs(self, reply):
-        word_idxs = []
-        for sen in reply.split(1):
-            _, idxs = sen.data.squeeze_().topk(1)
-            print(' idxs size : ' + str(idxs.size()) + ' ' + str(type(idxs)))
-            word_idxs += [torch.LongTensor([idx for idx in idxs if idx <
-                                            self.tgt_dict.size()])]
+            active = []
+            for b in range(batchSize):
+                if beam[b].done:
+                    continue
 
-        return word_idxs
+                idx = batchIdx[b]
+                if not beam[b].advance(wordLk.data[idx], attn.data[idx]):
+                    active += [b]
+
+                for decState in decStates:  # iterate over h, c
+                    # layers x beam*sent x dim
+                    sentStates = decState.view(-1, beamSize,
+                                               remainingSents,
+                                               decState.size(2))[:, :, idx]
+                    sentStates.data.copy_(
+                        sentStates.data.index_select(
+                            1, beam[b].getCurrentOrigin()))
+
+            if not active:
+                break
+
+            # in this section, the sentences that are still active are
+            # compacted so that the decoder is not run on completed sentences
+            activeIdx = self.tt.LongTensor([batchIdx[k] for k in active])
+            batchIdx = {beam: idx for idx, beam in enumerate(active)}
+
+            def updateActive(t):
+                # select only the remaining active sentences
+                view = t.data.view(-1, remainingSents, rnnSize)
+                newSize = list(t.size())
+                newSize[-2] = newSize[-2] * len(activeIdx) // remainingSents
+                return Variable(view.index_select(1, activeIdx)
+                                .view(*newSize), volatile=True)
+
+            decStates = (updateActive(decStates[0]),
+                         updateActive(decStates[1]))
+            decOut = updateActive(decOut)
+            context = updateActive(context)
+            if useMasking:
+                padMask = padMask.index_select(1, activeIdx)
+
+            remainingSents = len(active)
+
+        #  (4) package everything up
+        allHyp, allScores, allAttn = [], [], []
+        n_best = self.opt.n_best
+
+        for b in range(batchSize):
+            scores, ks = beam[b].sortBest()
+
+            allScores += [scores[:n_best]]
+            hyps, attn = zip(*[beam[b].getHyp(k) for k in ks[:n_best]])
+            allHyp += [hyps]
+            if useMasking:
+                valid_attn = srcBatch.data[:, b].ne(onmt.Constants.PAD) \
+                                                .nonzero().squeeze(1)
+                attn = [a.index_select(1, valid_attn) for a in attn]
+            allAttn += [attn]
+
+            if self.beam_accum:
+                self.beam_accum["beam_parent_ids"].append(
+                    [t.tolist()
+                     for t in beam[b].prevKs])
+                self.beam_accum["scores"].append([
+                    ["%4f" % s for s in t.tolist()]
+                    for t in beam[b].allScores][1:])
+                self.beam_accum["predicted_ids"].append(
+                    [[self.tgt_dict.getLabel(id)
+                      for id in t.tolist()]
+                     for t in beam[b].nextYs][1:])
+
+        return allHyp, allScores, allAttn, goldScores
 
     def reply(self, srcBatch, goldBatch):
         #  (1) convert words to indexes
@@ -151,22 +286,20 @@ class Converser(object):
         dataset = self.buildData(srcBatch, goldBatch)
 
         src, tgt = dataset[0]
-        # print(' src size : ' + str(src.size()))
-        batchSize = src.size(2)
+        batchSize = src.size(1)
 
         #  (2) translate
-        # pred = self.model((src, tgt)).transpose(0, 1)
-        # print('pred size : ' + str(pred.size()))
-        pred = self.translateBatch(src, tgt)
-        print(pred)
+        pred, predScore, attn, goldScore = self.translateBatch(src, tgt)
         # pred, predScore, attn, goldScore = list(zip(
         #    *sorted(zip(pred, predScore, attn, goldScore, indices),
         #            key=lambda x: x[-1])))[:-1]
 
         #  (3) convert indexes to words
-
         predBatch = []
         for b in range(batchSize):
-            predBatch.append([self.buildTargetTokens(pred[b], srcBatch[b])])
+            predBatch.append(
+                [self.buildTargetTokens(pred[b][n], srcBatch[b], attn[b][n])
+                 for n in range(self.opt.n_best)]
+            )
 
-        return predBatch  # , predScore, goldScore
+        return predBatch, predScore, goldScore

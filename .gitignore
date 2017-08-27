@@ -1,5 +1,6 @@
 *~
 models/*
+final_models/*
 logs/*
 logs0/*
 *__pycache__*

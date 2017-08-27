@@ -8,7 +8,7 @@ from numpy.random import randint
 def experiment(opt):
     data_name = 'frms'  # '.'.join(opt.data.split('/')[-1].split('.')[:-2])
     mem_str = opt.mem if opt.mem is not None else 'baseline'
-    fname_extention = '%s_%s' % (mem_str, data_name)
+    fname_extention = '%s_%s_%d' % (mem_str, data_name, opt.context_size)
 
     log_fn = workdir + 'logs/exps_res_cs_%s.log' % fname_extention
     dict_fn = workdir + 'logs/exp_res_cs_%s.pt' % fname_extention
@@ -76,7 +76,7 @@ def dnc_dnc():
 
 
 if __name__ == "__main__":
-    workdir = '../'
+    workdir = '../bla/'
     # workdir = '/var/scratch/jverdega/'
 
     parser = option_parse.get_parser()
@@ -84,7 +84,7 @@ if __name__ == "__main__":
 
     for n in range(3):
         for context_size in [1, 2, 3, 4, 5, 7, 9, 11]:
-            opt.data = '%sdata/frames/frms_cs%d.train.pt' % (
+            opt.data = '%s../data/frames/frms_cs%d.train.pt' % (
                 workdir, context_size)
             opt.context_size = context_size
             if context_size > 3:

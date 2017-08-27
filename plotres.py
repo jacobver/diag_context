@@ -8,16 +8,34 @@ from os import listdir
 parser = argparse.ArgumentParser()
 parser.add_argument('-dir', type=str, default='',
                     help='directory containing .pt files')
+parser.add_argument('-file', type=str, default='',
+                    help='file containing .pt ')
 parser.add_argument('-mem', type=str, default='',
                     help='memory to get results from')
 
 
 def main(args):
 
-    print(load_data(args))
+    print(single_file(args))
 
 
-def load_data(args):
+def single_file(args):
+
+    resdata = {i: 0 for i in [1, 2, 3, 4, 5, 7, 9, 11]}
+
+    pt = torch.load(args.file)
+    n_exp = 0
+    for n in pt.keys():
+        if pt[n]['args']['attn']:
+            n_exp += 1
+            resdata[pt[n]['args']['context_size']
+                    ] += min(pt[n]['val_ppls'])
+        resdata[pt[n]['args']['context_size']] /= n_exp
+
+    return resdata
+
+
+def multi_file(args):
 
     resdata = {i: 0 for i in [1, 2, 3, 4, 5, 7, 9, 11]}
 
@@ -27,9 +45,9 @@ def load_data(args):
         for n in pt.keys():
             if not pt[n]['args']['attn']:
                 n_exp += 1
-                resdata[pt[n]['args']['context_size']
-                        ] += min(pt[n]['val_ppls'])
-        resdata[pt[n]['args']['context_size']] /= n_exp
+                resdata[pt[n]
+                        ]['args']['context_size'] += min(pt[n]['val_ppls'])
+                resdata[pt[n]['args']['context_size']] /= n_exp
 
     return resdata
 

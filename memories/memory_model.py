@@ -64,7 +64,8 @@ class MemModel(nn.Module):
 
         emb_out = self.embed_out(tgt)
 
-        outputs, dec_hidden, M = self.decoder(emb_out, hidden, M, init_output)
+        outputs, dec_hidden, M = self.decoder(
+            emb_out, hidden, M, context, init_output)
 
         return outputs
 

@@ -26,14 +26,14 @@ class DNC(nn.Module):
 
         self.dropout = nn.Dropout(opt.dropout)
         self.attn = GlobalAttention(
-            opt.word_vec_size) if opt.attn and opt.seq == 'decoder' else None
+            opt.word_vec_size) if opt.attn and mode == 'decode' else None
 
     '''
     input: embedded sequence (seq_sz x batch_sz x word_vec_sz)
     output:
     '''
 
-    def forward(self, emb_utt, hidden, mem, context=None):
+    def forward(self, emb_utt, hidden, mem, context=None, init_output=None):
 
         #hidden = self.make_init_hidden(emb_utt, *self.rnn_sz)
         seq_len = emb_utt.size(0)
@@ -60,9 +60,7 @@ class DNC(nn.Module):
         pre_output, interface = None, None
 
         # TODO: perform matmul(input, W) before loops
-        out = emb_utt[0].clone()
-        out.data.zero_()
-
+        out = init_output
         for time, emb_w in enumerate(emb_utt.split(1)):
             step_input = emb_w.squeeze(0)
             if self.input_feed:
@@ -105,7 +103,7 @@ class DNC(nn.Module):
 
             attn = None
             if context is not None and self.attn is not None:
-                out, attn = self.attn(out, context.t())
+                out, attn = self.attn(out, context.transpose(0, 1))
 
             outputs_time[time] = out
             free_gates_time[time] = interface['free_gates'].clone()

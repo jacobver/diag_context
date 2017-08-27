@@ -88,15 +88,13 @@ def cumprod(inputs, dim = 1, exclusive=True):
         if not exclusive:
             return temp
         else:
-            temp =  temp / (input[0].expand_dims(0).expand_as(temp) + 1e-8)
-            temp[-1] = temp[-1]/(input[-1]+1e-8)
+            temp =  temp / (inputs[0].expand_as(temp) + 1e-8)
+            temp[-1] = temp[-1]/(inputs[-1]+1e-8)
             return temp
     else:
         shape_ = inputs.size()
         ndim = len(shape_)
         n_slot = shape_[dim]
-
-        output = Variable(inputs.data.new(*shape_).fill_(1.0), requires_grad = True)
         slice_ = [slice(0,None,1) for _ in range(ndim)]
         results = [[]] * n_slot
             
@@ -153,10 +151,10 @@ def cosine_distance(memory_matrix, cos_keys):
     Returns: Tensor (batch_size, mem_slot, number_of_keys)
         The list of lookup weightings for each provided key
     """
-    memory_norm = torch.norm(memory_matrix, 2, 2)
-    keys_norm = torch.norm(cos_keys, 2, 1)
+    memory_norm = torch.norm(memory_matrix, 2, 2, keepdim=True)
+    keys_norm = torch.norm(cos_keys, 2, 1,keepdim=True)
     
-    normalized_mem = torch.div(memory_matrix, memory_norm.expand_as(memory_matrix) + 1e-8)
+    normalized_mem  = torch.div(memory_matrix, memory_norm.expand_as(memory_matrix) + 1e-8)
     normalized_keys = torch.div(cos_keys, keys_norm.expand_as(cos_keys) + 1e-8)
     
     out =  torch.bmm(normalized_mem, normalized_keys)

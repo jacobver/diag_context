@@ -40,7 +40,7 @@ def get_parser():
     # Optimization options
     parser.add_argument('-encoder_type', default='text',
                         help="Type of encoder to use. Options are [text|img].")
-    parser.add_argument('-batch_size', type=int, default=64,
+    parser.add_argument('-batch_size', type=int, default=32,
                         help='Maximum batch size')
     parser.add_argument('-max_generator_batches', type=int, default=32,
                         help="""Maximum batches of words in a sequence to run
@@ -107,11 +107,11 @@ def get_parser():
                         help='in case of [nse]: number of encoded memories to read')
 
     # DNC options
-    parser.add_argument('-mem_slots', type=int, default=30,
+    parser.add_argument('-mem_slots', type=int, default=40,
                         help='in case of [dnc]: number of memory slots')
-    parser.add_argument('-mem_size', type=int, default=80,
+    parser.add_argument('-mem_size', type=int, default=100,
                         help='in case of [dnc]: size of memory slots')
-    parser.add_argument('-read_heads', type=int, default=1,
+    parser.add_argument('-read_heads', type=int, default=2,
                         help='in case of [dnc]: number of read heads')
     parser.add_argument('-share_M', type=int, default=1,
                         help='whther to share the memory between en- and decoder')

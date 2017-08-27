@@ -103,7 +103,6 @@ class Memory(nn.Module):
         Returns: Tensor (batch_size, mem_slot, )
             the updated usage vector
         """
-
         free_gates = expand_dims(free_gates, 1).expand_as(read_weights)
         retention_vector = torch.prod(2 - read_weights * free_gates, 2)
         updated_usage = (usage_vector + write_weight -
@@ -142,22 +141,20 @@ class Memory(nn.Module):
         mapped_free_list = free_list + index_mapper
         flat_unordered_allocation_weight = unordered_allocation_weight.view(-1)
         flat_mapped_free_list = mapped_free_list.view(-1)
-        #flat_container = Variable(sorted_usage.data.new(self.batch_size * self.mem_slot).fill_(0), requires_grad= True).cpu()
         flat_container = Variable(sorted_usage.data.new(
-            batch_size * self.mem_slot).fill_(0), requires_grad=True).cpu()
+            self.batch_size * self.mem_slot).fill_(0), requires_grad=False)
 
         # flat_ordered_weights = flat_container.scatter(
         #    flat_mapped_free_list,
         #    flat_unordered_allocation_weight
         #)
         flat_ordered_weights = flat_container.scatter_(0,
-                                                       flat_mapped_free_list.cpu(),
-                                                       flat_unordered_allocation_weight.cpu()
+                                                       flat_mapped_free_list.data,
+                                                       flat_unordered_allocation_weight.data
                                                        )
-        flat_ordered_weights = to_device(flat_ordered_weights, free_list)
+        #flat_ordered_weights = to_device(flat_ordered_weights, free_list)
         # apply_dict(locals())
-        # return flat_ordered_weights.view(self.batch_size, self.mem_slot)
-        return flat_ordered_weights.view(batch_size, self.mem_slot)
+        return flat_ordered_weights.view(self.batch_size, self.mem_slot)
 
     def update_write_weight(self, lookup_weight, allocation_weight, write_gate, allocation_gate):
         """
@@ -182,8 +179,7 @@ class Memory(nn.Module):
         first_2_size = lookup_weight.size()[0:2]
         lookup_weight = lookup_weight.view(*first_2_size)
         alloc_wshape = allocation_weight.size()
-        #print(' -- alloc_wshape = ' +str(alloc_wshape))
-        #print(' -- alloc gate sz = ' +str(allocation_gate.size()))
+
         expand_ag = allocation_gate.expand(*alloc_wshape)
         updated_write_weight = write_gate.expand(*alloc_wshape) * (expand_ag *
                                                                    allocation_weight + (1 - expand_ag) * lookup_weight)
@@ -241,9 +237,9 @@ class Memory(nn.Module):
             the updated precedence vector
         """
 
-        reset_factor = 1 - reduce_sum(write_weight, 1)
-        updated_precedence_vector = reset_factor.expand_as(
-            precedence_vector) * precedence_vector + write_weight
+        reset_factor = 1 - reduce_sum(write_weight, 1, keep_dim=True)
+        updated_precedence_vector = reset_factor.expand_as(precedence_vector) * \
+            precedence_vector + write_weight
         # apply_dict(locals())
         return updated_precedence_vector
 
@@ -343,7 +339,7 @@ class Memory(nn.Module):
         read_weights: Tensor (batch_size, mem_slot, read_heads)
             the amount of info to read from each memory location by each read head
 
-        Returns: Tensor (mem_size, read_heads)
+        Returns:  Tensor (batch_size, mem_size, read_heads)
         """
 
         updated_read_vectors = torch.bmm(
@@ -401,13 +397,11 @@ class Memory(nn.Module):
         lookup_weight = self.get_content_address(memory_matrix, key, strength)
         new_usage_vector = self.update_usage_vector(
             usage_vector, read_weights, write_weight, free_gates)
-        #print(' usage_vec sz : '+str(usage_vector.size()))
-        #print(' new usage_vec sz : '+str(new_usage_vector.size()))
+
         # sort the memory usage vector, it's leaft node, superisingly the mode
         # is sitll differentiable.
         np_new_usage_vec = new_usage_vector.cpu().data.numpy()
         sort_list = np.argsort(np_new_usage_vec, axis=-1)
-        #print(' sort list sz : '+str(sort_list.size))
 
         #free_list = Variable(new_usage_vector.data.new(*(sort_list.shape))).long()
         free_list = Variable(torch.from_numpy(sort_list)).long()
@@ -415,11 +409,9 @@ class Memory(nn.Module):
         sorted_usage = torch.gather(new_usage_vector, 1,  free_list)
 
         #sorted_usage, free_list = top_k(-1 * new_usage_vector, self.mem_slot)
-        #print(' free list sz : '+str(free_list.size()))
         #sorted_usage = -1 * sorted_usage
 
         allocation_weight = self.get_allocation_weight(sorted_usage, free_list)
-        #print(' alloc weight sz : '+str(allocation_weight.size()))
         new_write_weight = self.update_write_weight(
             lookup_weight, allocation_weight, write_gate, allocation_gate)
         new_memory_matrix = self.update_memory(

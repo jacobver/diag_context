@@ -64,17 +64,20 @@ def baseline():
 def dnc_dnc():
     opt.share_M = 1
     opt.mem_size = 100
-    opt.mem_slots = 50
+    opt.mem_slots = 40
     opt.read_heads = 2
-    opt.rnn_size = 500
+    opt.rnn_size = 400
     opt.mem = 'dnc_dnc'
-    opt.input_feed = 0
+    for attn in [1, 0]:
+        opt.attn = attn
+        opt.input_feed = attn
+
     experiment(opt)
 
 
 if __name__ == "__main__":
-    workdir = '../'
-    # workdir = '/var/scratch/jverdega/'
+    # workdir = '../'
+    workdir = '/var/scratch/jverdega/'
 
     parser = option_parse.get_parser()
     opt = parser.parse_args()
@@ -89,6 +92,6 @@ if __name__ == "__main__":
                 if context_size > 7:
                     opt.batch_size = 8
 
-            baseline()
-            # dnc_dnc()
+            # baseline()
+            dnc_dnc()
         # nse_nse()

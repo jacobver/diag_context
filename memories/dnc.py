@@ -61,6 +61,7 @@ class DNC(nn.Module):
 
         # TODO: perform matmul(input, W) before loops
         out = init_output
+        #print(' emb_utt size : ' + str(emb_utt.size()))
         for time, emb_w in enumerate(emb_utt.split(1)):
             step_input = emb_w.squeeze(0)
             if self.input_feed:

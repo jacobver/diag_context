@@ -48,6 +48,7 @@ class MemModel(nn.Module):
 
     def dnc_encode(self, src):
         batch_size = src.size(1)
+
         hidden = self.encoder.make_init_hidden(src[0], *self.encoder.rnn_sz)
 
         M = self.encoder.make_init_M(batch_size)

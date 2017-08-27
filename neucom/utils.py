@@ -6,29 +6,33 @@ import torch.nn.functional as F
 from torch.autograd import Variable
 import torch.nn as nn
 
+
 def apply_var(v, k):
     if isinstance(v, Variable) and v.requires_grad:
-            v.register_hook(inves(k))
-            
+        v.register_hook(inves(k))
+
+
 def apply_dict(dic):
     for k, v in dic.iteritems():
         apply_var(v, k)
         if isinstance(v, nn.Module):
-           key_list = [a for a in dir(v) if not a.startswith('__')]
-           for key in key_list:
-               apply_var(getattr(v, key), key)
-           for pk, pv in v._parameters.iteritems():
-               apply_var(pv, pk)
-        
+            key_list = [a for a in dir(v) if not a.startswith('__')]
+            for key in key_list:
+                apply_var(getattr(v, key), key)
+            for pk, pv in v._parameters.iteritems():
+                apply_var(pv, pk)
+
+
 def inves(name=''):
     def f(tensor):
-        if np.isnan(torch.mean(tensor).data.cpu().numpy() ):
+        if np.isnan(torch.mean(tensor).data.cpu().numpy()):
             print('\ngradient of {} :'.format(name))
             print(tensor)
             assert 0, 'nan gradient'
             return tensor
     return f
-        
+
+
 def reduce_sum(inputs, dim=None, keep_dim=False):
     if dim is None:
         return torch.sum(inputs)
@@ -37,8 +41,8 @@ def reduce_sum(inputs, dim=None, keep_dim=False):
         return output
     else:
         return expand_dims(output, dim)
-        
-    
+
+
 def pairwise_add(u, v=None, is_batch=False):
     """
     performs a pairwise summation between vectors (possibly the same)
@@ -50,7 +54,7 @@ def pairwise_add(u, v=None, is_batch=False):
     Returns: 
     ---------
     Tensor (m, n) or (b, m, n)
-    
+
     """
     u_shape = u.size()
     if v is None:
@@ -64,7 +68,7 @@ def pairwise_add(u, v=None, is_batch=False):
 
     m = u_shape[0] if not is_batch else u_shape[1]
     n = v_shape[0] if not is_batch else v_shape[1]
-    
+
     u = expand_dims(u, axis=-1)
     new_u_shape = list(u.size())
     new_u_shape[-1] = n
@@ -77,10 +81,12 @@ def pairwise_add(u, v=None, is_batch=False):
 
     return U_ + V_
 
+
 def to_device(src, ref):
     return src.cuda(ref.get_device()) if ref.is_cuda else src
 
-def cumprod(inputs, dim = 1, exclusive=True):
+
+def cumprod(inputs, dim=1, exclusive=True):
     # https://github.com/tensorflow/tensorflow/blob/master/tensorflow/g3doc/api_docs/python/functions_and_classes/shard0/tf.cumprod.md
 
     if type(inputs) is not Variable:
@@ -88,36 +94,37 @@ def cumprod(inputs, dim = 1, exclusive=True):
         if not exclusive:
             return temp
         else:
-            temp =  temp / (inputs[0].expand_as(temp) + 1e-8)
-            temp[-1] = temp[-1]/(inputs[-1]+1e-8)
+            temp = temp / (inputs[0].expand_as(temp) + 1e-8)
+            temp[-1] = temp[-1] / (inputs[-1] + 1e-8)
             return temp
     else:
         shape_ = inputs.size()
         ndim = len(shape_)
         n_slot = shape_[dim]
-        slice_ = [slice(0,None,1) for _ in range(ndim)]
+        slice_ = [slice(0, None, 1) for _ in range(ndim)]
         results = [[]] * n_slot
-            
-        for ind in range(0, n_slot):   
+
+        for ind in range(0, n_slot):
             this_slice, last_slice = copy(slice_), copy(slice_)
             this_slice[dim] = ind
-            last_slice[dim] = ind-1      
+            last_slice[dim] = ind - 1
             this_slice = tuple(this_slice)
             last_slice = tuple(last_slice)
-            if exclusive: 
-                if ind > 0:   
-                    results[ind]  = results[ind-1]*inputs[last_slice]
+            if exclusive:
+                if ind > 0:
+                    results[ind] = results[ind - 1] * inputs[last_slice]
                 else:
-                    results[ind] =  torch.div(inputs[this_slice], inputs[this_slice]+1e-8)
-            else:    
-                if ind > 0:   
-                    results[ind]  = results[ind - 1]*inputs[this_slice]
+                    results[ind] = torch.div(
+                        inputs[this_slice], inputs[this_slice] + 1e-8)
+            else:
+                if ind > 0:
+                    results[ind] = results[ind - 1] * inputs[this_slice]
                 else:
-                    results[ind] =  inputs[this_slice]
-        
+                    results[ind] = inputs[this_slice]
+
         return torch.stack(results, dim)
 
-            
+
 def expand_dims(input, axis=0):
     input_shape = list(input.size())
     if axis < 0:
@@ -134,6 +141,7 @@ def matmal(left, right):
     '''
     pass
 
+
 def cosine_distance(memory_matrix, cos_keys):
     """
     compute the cosine similarity between keys to each of the 
@@ -147,44 +155,47 @@ def cosine_distance(memory_matrix, cos_keys):
         the keys to query the memory with
     strengths: Tensor (batch_size, number_of_keys, )
         the list of strengths for each lookup key
-    
+
     Returns: Tensor (batch_size, mem_slot, number_of_keys)
         The list of lookup weightings for each provided key
     """
     memory_norm = torch.norm(memory_matrix, 2, 2, keepdim=True)
-    keys_norm = torch.norm(cos_keys, 2, 1,keepdim=True)
-    
-    normalized_mem  = torch.div(memory_matrix, memory_norm.expand_as(memory_matrix) + 1e-8)
+    keys_norm = torch.norm(cos_keys, 2, 1, keepdim=True)
+
+    normalized_mem = torch.div(
+        memory_matrix, memory_norm.expand_as(memory_matrix) + 1e-8)
     normalized_keys = torch.div(cos_keys, keys_norm.expand_as(cos_keys) + 1e-8)
-    
-    out =  torch.bmm(normalized_mem, normalized_keys)
-    
-    #print(normalized_keys)
-    #print(out)
-    #apply_dict(locals())
-    
+
+    out = torch.bmm(normalized_mem, normalized_keys)
+
+    # print(normalized_keys)
+    # print(out)
+    # apply_dict(locals())
+
     return out
+
+
 def softmax(input, axis=1):
     """ 
     Apply softmax on input at certain axis.
-    
+
     Parammeters:
     ----------
     input: Tensor (N*L or rank>2)
     axis: the axis to apply softmax
-    
+
     Returns: Tensor with softmax applied on that dimension.
     """
-    
+
     input_size = input.size()
-    
-    trans_input = input.transpose(axis, len(input_size)-1)
+
+    trans_input = input.transpose(axis, len(input_size) - 1)
     trans_size = trans_input.size()
 
     input_2d = trans_input.contiguous().view(-1, trans_size[-1])
-    
+
     soft_max_2d = F.softmax(input_2d)
-    
+
     soft_max_nd = soft_max_2d.view(*trans_size)
-    #apply_dict(locals())
-    return soft_max_nd.transpose(axis, len(input_size)-1)
+    # apply_dict(locals())
+    return soft_max_nd.transpose(axis, len(input_size) - 1)

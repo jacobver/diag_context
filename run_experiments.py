@@ -76,8 +76,8 @@ def dnc_dnc():
 
 
 if __name__ == "__main__":
-    # workdir = '../'
-    workdir = '/var/scratch/jverdega/'
+    workdir = '../'
+    # workdir = '/var/scratch/jverdega/'
 
     parser = option_parse.get_parser()
     opt = parser.parse_args()

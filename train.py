@@ -222,9 +222,9 @@ def main():
         dataset['dicts'] = checkpoint['dicts']
 
     trainData = memories.Dataset(dataset['train']['src'],
-                                 dataset['train']['tgt'], opt.batch_size, opt.gpus, 1)
+                                 dataset['train']['tgt'], opt.batch_size, opt.gpus, opt.context_size)
     validData = memories.Dataset(dataset['valid']['src'],
-                                 dataset['valid']['tgt'], opt.batch_size, opt.gpus, 1,
+                                 dataset['valid']['tgt'], opt.batch_size, opt.gpus, opt.context_size,
                                  volatile=True)
 
     dicts = dataset['dicts']
@@ -236,7 +236,10 @@ def main():
 
     print('Building model...')
 
-    model = memories.memory_model.MemModel(opt, dicts)
+    if opt.hier:
+        model = memories.hierarchical_model.HierModel(opt, dicts)
+    else:
+        model = memories.memory_model.MemModel(opt, dicts)
 
     generator = nn.Sequential(
         nn.Linear(opt.word_vec_size, dicts['tgt'].size()),

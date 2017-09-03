@@ -25,14 +25,14 @@ parser.add_argument('-save_data', default='../data/frames/frms',
 
 parser.add_argument('-src_vocab_size', type=int, default=50000,
                     help="Size of the source vocabulary")
-parser.add_argument('-src_vocab',
+parser.add_argument('-src_vocab', default='../data/frames/frms.src.dict',
                     help="Path to an existing source vocabulary")
 parser.add_argument('-tgt_vocab_size', type=int, default=50000,
                     help="Size of the source vocabulary")
-parser.add_argument('-tgt_vocab',
+parser.add_argument('-tgt_vocab', default='../data/frames/frms.tgt.dict',
                     help="Path to an existing source vocabulary")
 
-parser.add_argument('-seq_length', type=int, default=100,
+parser.add_argument('-seq_length', type=int, default=200,
                     help="Maximum source sequence length")
 
 parser.add_argument('-shuffle',    type=int, default=1,
@@ -42,14 +42,14 @@ parser.add_argument('-seed',       type=int, default=3435,
 
 parser.add_argument('-lower', action='store_true', help='lowercase data')
 
-parser.add_argument('-report_every', type=int, default=1000,
+parser.add_argument('-report_every', type=int, default=10000,
                     help="Report status every this many sentences")
 
-parser.add_argument('-context_size', type=int, default=12,
+parser.add_argument('-context_size', type=int, default=16,
                     help="number of source sentences")
 
 parser.add_argument('-continu', type=int, default=1,
-                    help="if 1, output is 1dimensional")
+                    help="if 1, intput is 2 dimensional")
 
 opt = parser.parse_args()
 
@@ -145,11 +145,22 @@ def makeData(srcfile, tgtfile, dicts):
             for cs in range(1, opt.context_size):
                 if cs < len(utts):
                     src_context = []
-                    for src_sen in utts[-cs:]:
-                        src_context.extend(src_sen + [onmt.Constants.EOS_WORD])
-                    data[cs]['src'] += [dicts['src'].convertToIdx(src_context[:-1],
-                                                                  onmt.Constants.UNK_WORD)]
-                    sizes[cs] += [len(src_context[:-1])]
+                    if opt.continu:
+                        for src_sen in utts[-cs:]:
+                            src_context.extend(
+                                src_sen + [onmt.Constants.EOS_WORD])
+                        data[cs]['src'] += [dicts['src'].convertToIdx(src_context[:-1],
+                                                                      onmt.Constants.UNK_WORD)]
+                        sizes[cs] += [len(src_context[:-1])]
+                    else:
+                        con_tensor = []
+                        con_sizes = []
+                        for src_sen in utts[-cs:]:
+                            con_tensor += [dicts['src'].convertToIdx(src_sen,
+                                                                     onmt.Constants.UNK_WORD)]
+                            con_sizes += [len(src_sen)]
+                        data[cs]['src'] += [con_tensor]
+                        sizes[cs] += [con_sizes]
                     data[cs]['tgt'] += [dicts['tgt'].convertToIdx(tgt_utt, onmt.Constants.UNK_WORD,
                                                                   onmt.Constants.BOS_WORD,
                                                                   onmt.Constants.EOS_WORD)]
@@ -167,10 +178,11 @@ def makeData(srcfile, tgtfile, dicts):
             data[cs]['src'] = [data[cs]['src'][idx] for idx in perm]
             data[cs]['tgt'] = [data[cs]['tgt'][idx] for idx in perm]
 
-            print('... sorting sentences by size')
-            _, perm = torch.sort(torch.Tensor(sizes[cs]))
-            data[cs]['src'] = [data[cs]['src'][idx] for idx in perm]
-            data[cs]['tgt'] = [data[cs]['tgt'][idx] for idx in perm]
+            if opt.continu:
+                print('... sorting sentences by size')
+                _, perm = torch.sort(torch.Tensor(sizes[cs]))
+                data[cs]['src'] = [data[cs]['src'][idx] for idx in perm]
+                data[cs]['tgt'] = [data[cs]['tgt'][idx] for idx in perm]
 
     return data
 
@@ -201,7 +213,14 @@ def main():
         save_data = {'dicts': dicts,
                      'train': train_data[cs],
                      'valid': valid_data[cs]}
-        torch.save(save_data, opt.save_data + '_cs' + str(cs) + '.train.pt')
+
+        save_str = '_cs' + str(cs)
+        if opt.continu:
+            save_str += '_continu'
+        else:
+            save_str += '_sep'
+
+        torch.save(save_data, opt.save_data + save_str + '.train.pt')
 
 
 if __name__ == "__main__":

@@ -12,6 +12,7 @@ class LSTMseq(nn.Module):
             self.num_directions = 2 if opt.brnn else 1
             assert opt.rnn_size % self.num_directions == 0
             self.hidden_size = opt.rnn_size // self.num_directions
+            self.directions = 1 + opt.brnn
             self.rnn = nn.LSTM(opt.word_vec_size, self.hidden_size,
                                num_layers=opt.layers,
                                dropout=opt.dropout,
@@ -23,12 +24,14 @@ class LSTMseq(nn.Module):
             input_size = opt.word_vec_size
             self.input_feed = opt.input_feed
             if self.input_feed:
-                input_size += opt.rnn_size
+                input_size += opt.word_vec_size
+
+            h1_size = opt.word_vec_size  # int(opt.rnn_size * 2)
             self.rnn = StackedLSTM(opt.layers, input_size,
-                                   opt.rnn_size, opt.dropout)
+                                   (h1_size, opt.word_vec_size), opt.dropout)
 
             self.attn = memories.GlobalAttention(
-                opt.rnn_size) if opt.attn else None
+                opt.word_vec_size) if opt.attn else None
 
             self.dropout = nn.Dropout(opt.dropout)
             self.forward = self.decode
@@ -64,8 +67,8 @@ class StackedLSTM(nn.Module):
         self.layers = nn.ModuleList()
 
         for i in range(num_layers):
-            self.layers.append(nn.LSTMCell(input_size, rnn_size))
-            input_size = rnn_size
+            self.layers.append(nn.LSTMCell(input_size, rnn_size[i]))
+            input_size = rnn_size[i]
 
     def forward(self, input, hidden):
         h_0, c_0 = hidden
@@ -78,7 +81,7 @@ class StackedLSTM(nn.Module):
             h_1 += [h_1_i]
             c_1 += [c_1_i]
 
-        h_1 = torch.stack(h_1)
-        c_1 = torch.stack(c_1)
+        #h_1 = torch.stack(h_1)
+        #c_1 = torch.stack(c_1)
 
         return input, (h_1, c_1)

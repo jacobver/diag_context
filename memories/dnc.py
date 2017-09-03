@@ -11,8 +11,14 @@ class DNC(nn.Module):
         super(DNC, self).__init__()
 
         self.input_feed = opt.input_feed if mode == 'decode' else 0
+
+        output_size = opt.word_vec_size // 2 if mode == 'bla_diag_encode' else opt.word_vec_size
+
+        opt.rnn_size = opt.word_vec_size if mode == 'diag_encode' else opt.rnn_size
+
         self.rnn_sz = (opt.word_vec_size, None) if opt.layers == 1 else (
-            opt.rnn_size, opt.word_vec_size)
+            opt.rnn_size, output_size)
+
         self.layers = opt.layers
         self.net_data = [] if opt.gather_net_data else None
 
@@ -21,7 +27,8 @@ class DNC(nn.Module):
                              opt.read_heads, opt.batch_size, use_cuda)
 
         input_sz = 2 * opt.word_vec_size if self.input_feed else opt.word_vec_size
-        self.controller = Controller(input_sz, opt.word_vec_size, opt.read_heads, opt.rnn_size,
+
+        self.controller = Controller(input_sz, output_size, opt.read_heads, opt.rnn_size,
                                      opt.mem_size, opt.batch_size, opt.dropout, opt.layers)
 
         self.dropout = nn.Dropout(opt.dropout)

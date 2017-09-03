@@ -1,5 +1,5 @@
 import memories
-from memories import nse, dnc, lstms
+from memories import dnc, lstms
 from onmt import Constants
 
 
@@ -8,26 +8,34 @@ import torch.nn as nn
 from torch.autograd import Variable
 
 
-class MemModel(nn.Module):
+class HierModel(nn.Module):
 
     def __init__(self, opt, dicts):
-        super(MemModel, self).__init__()
+        super(HierModel, self).__init__()
 
         self.set_embeddings(opt, dicts)
 
         mem = opt.mem.split('_')
 
+        self.sen_encoder = nn.LSTM(opt.word_vec_size, opt.word_vec_size // 2,
+                                   num_layers=2,
+                                   dropout=opt.dropout,
+                                   bidirectional=1)
+
         if mem[0] == 'lstm':
             opt.rnn_size = self.embed_in.weight.size(1)
-            self.encoder = lstms.LSTMseq(opt, dicts, 'encode')
+            self.diag_encoder = lstms.LSTMseq(opt, dicts, 'encode')
         elif mem[0] == 'dnc':
-            self.encoder = dnc.DNC(opt, 'encode')
+            self.diag_encoder = dnc.DNC(opt, 'diag_encode')
 
         if mem[1] == 'lstm':
             opt.word_vec_size = self.embed_out.weight.size(1)
             self.decoder = lstms.LSTMseq(opt, dicts, 'decode')
         elif mem[1] == 'dnc':
             self.decoder = dnc.DNC(opt, 'decode')
+
+        self.merge_h = nn.Linear(2 * opt.word_vec_size, opt.word_vec_size)
+        self.merge_c = nn.Linear(2 * opt.word_vec_size, opt.word_vec_size)
 
         self.forward = eval('self.' + opt.mem)
         self.generate = False
@@ -48,15 +56,48 @@ class MemModel(nn.Module):
 
     def dnc_encode(self, src):
         batch_size = src.size(1)
-        print(' src size : ' + str(src.size()))
 
         hidden = self.encoder.make_init_hidden(src[0], *self.encoder.rnn_sz)
-        print(' h size : ' + str(hidden[0][0].size()))
 
         M = self.encoder.make_init_M(batch_size)
 
         emb_in = self.embed_in(src)
         return self.encoder(emb_in, hidden, M)
+
+    def dnc_lstm(self, input):
+        src = input[0]
+        tgt = input[1][:-1]
+
+        diag = []
+        for sen in src.split(1):
+            emb_in = self.embed_in(sen.squeeze(0))
+            context, hidden = self.sen_encoder(emb_in)
+            diag += [context[-1]]
+
+        diag = torch.stack(diag, 0)
+        batch_size = src.size()[-1]
+        diag_hidden = self.diag_encoder.make_init_hidden(
+            src[0][0], *self.diag_encoder.rnn_sz)
+        M = self.diag_encoder.make_init_M(batch_size)
+
+        diag_out, diag_hidden, M = self.diag_encoder(
+            diag, diag_hidden, M)
+
+        enc_hidden = (self.fix_enc_hidden(hidden[0]),
+                      self.fix_enc_hidden(hidden[1]))
+
+        dec_hidden = ((self.merge_h(torch.cat((enc_hidden[0][0], diag_hidden[0][0]), 1)),
+                       self.merge_h(torch.cat((enc_hidden[0][1], diag_hidden[1][0]), 1))),
+                      (self.merge_c(torch.cat((enc_hidden[1][0], diag_hidden[0][1]), 1)),
+                       self.merge_c(torch.cat((enc_hidden[1][1], diag_hidden[1][1]), 1))))
+
+        emb_out = self.embed_out(tgt)
+        init_output = self.make_init_decoder_output(emb_out[0])
+
+        outputs, hidden, attn = self.decoder(
+            emb_out, dec_hidden, context, init_output)
+
+        return outputs
 
     def dnc_dnc(self, input):
         src = input[0]  # .transpose(1, 2)
@@ -69,31 +110,6 @@ class MemModel(nn.Module):
 
         outputs, dec_hidden, M = self.decoder(
             emb_out, hidden, M, context, init_output)
-
-        return outputs
-
-    def nse_nse(self, input):
-        src = input[0]  # .transpose(1, 2)
-        tgt = input[1][:-1]  # .transpose(0, 1)
-        batch_size = tgt.size(1)
-        hidden = self.encoder.make_init_hidden(
-            src[0], (batch_size, self.encoder.rnn_size))
-
-        mem_queue = []
-        for sen in src.split(1):
-            emb_in = self.word_lut(sen.squeeze(0))
-            mask = sen.transpose(0, 1).eq(0).detach()
-            M = emb_in.clone().transpose(0, 1)  # .detach()
-            context, hidden, enc_M = self.encoder(
-                emb_in, hidden, (M, mask))
-            mem_queue += [(enc_M, mask)]
-
-        init_output = self.make_init_decoder_output(emb_in[0])
-
-        emb_out = self.word_lut(tgt)
-
-        outputs, dec_hidden, M = self.decoder(
-            emb_out, hidden, mem_queue, init_output)
 
         return outputs
 

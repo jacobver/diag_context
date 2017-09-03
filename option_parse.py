@@ -96,6 +96,9 @@ def get_parser():
     parser.add_argument('-log_interval', type=int, default=10,
                         help="Print stats at this interval.")
 
+    parser.add_argument('-hier', type=int, default=1,
+                        help='hierarchical model')
+
     # Memory options
     parser.add_argument('-mem', default=None,
                         help='which type of memory to use, default: None')

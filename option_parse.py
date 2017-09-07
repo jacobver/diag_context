@@ -38,8 +38,6 @@ def get_parser():
                         [concat|sum]""")
 
     # Optimization options
-    parser.add_argument('-encoder_type', default='text',
-                        help="Type of encoder to use. Options are [text|img].")
     parser.add_argument('-batch_size', type=int, default=32,
                         help='Maximum batch size')
     parser.add_argument('-max_generator_batches', type=int, default=32,
@@ -108,6 +106,8 @@ def get_parser():
                         help='in case of [n2n]: completely linear model to quickstart training')
     parser.add_argument('-context_size', type=int, default=2,
                         help='in case of [nse]: number of encoded memories to read')
+    parser.add_argument('-merge_hidden', type=int, default=0,
+                        help='if 0: only diag hidden is used for decoder, else merged via linear with sequence hidden')
 
     # DNC options
     parser.add_argument('-mem_slots', type=int, default=40,

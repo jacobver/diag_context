@@ -34,10 +34,12 @@ class HierModel(nn.Module):
         elif mem[1] == 'dnc':
             self.decoder = dnc.DNC(opt, 'decode')
 
-        self.merge_h = nn.Linear(2 * opt.word_vec_size, opt.word_vec_size)
-        self.merge_c = nn.Linear(2 * opt.word_vec_size, opt.word_vec_size)
+        self.merge_hidden = opt.merge_hidden
+        if self.merge_hidden:
+            self.merge_h = nn.Linear(2 * opt.word_vec_size, opt.word_vec_size)
+            self.merge_c = nn.Linear(2 * opt.word_vec_size, opt.word_vec_size)
 
-        self.forward = eval('self.' + opt.mem)
+        self.forward = eval('self.hier_' + opt.mem)
         self.generate = False
 
     def lstm_lstm(self, input):
@@ -64,9 +66,7 @@ class HierModel(nn.Module):
         emb_in = self.embed_in(src)
         return self.encoder(emb_in, hidden, M)
 
-    def dnc_lstm(self, input):
-        src = input[0]
-        tgt = input[1][:-1]
+    def hier_dnc_lstm_encode(self, src):
 
         diag = []
         for sen in src.split(1):
@@ -86,16 +86,53 @@ class HierModel(nn.Module):
         enc_hidden = (self.fix_enc_hidden(hidden[0]),
                       self.fix_enc_hidden(hidden[1]))
 
-        dec_hidden = ((self.merge_h(torch.cat((enc_hidden[0][0], diag_hidden[0][0]), 1)),
-                       self.merge_h(torch.cat((enc_hidden[0][1], diag_hidden[1][0]), 1))),
-                      (self.merge_c(torch.cat((enc_hidden[1][0], diag_hidden[0][1]), 1)),
-                       self.merge_c(torch.cat((enc_hidden[1][1], diag_hidden[1][1]), 1))))
+        return diag_out, diag_hidden, M, context, enc_hidden
 
+    def hier_dnc_lstm(self, input):
+
+        src = input[0]
+        tgt = input[1][:-1]
+
+        diag_out, diag_hidden, M, context, enc_hidden = self.hier_dnc_lstm_encode(
+            src)
+
+        if self.merge_hidden:
+            dec_hidden = ((self.merge_h(torch.cat((enc_hidden[0][0], diag_hidden[0][0]), 1)),
+                           self.merge_h(torch.cat((enc_hidden[0][1], diag_hidden[1][0]), 1))),
+                          (self.merge_c(torch.cat((enc_hidden[1][0], diag_hidden[0][1]), 1)),
+                           self.merge_c(torch.cat((enc_hidden[1][1], diag_hidden[1][1]), 1))))
+
+        else:
+            dec_hidden = diag_hidden
         emb_out = self.embed_out(tgt)
         init_output = self.make_init_decoder_output(emb_out[0])
 
         outputs, hidden, attn = self.decoder(
             emb_out, dec_hidden, context, init_output)
+
+        return outputs
+
+    def hier_dnc_dnc(self, input):
+
+        src = input[0]
+        tgt = input[1][:-1]
+
+        diag_out, diag_hidden, M, context, enc_hidden = self.hier_dnc_lstm_encode(
+            src)
+
+        if self.merge_hidden:
+            dec_hidden = ((self.merge_h(torch.cat((enc_hidden[0][0], diag_hidden[0][0]), 1)),
+                           self.merge_h(torch.cat((enc_hidden[0][1], diag_hidden[1][0]), 1))),
+                          (self.merge_c(torch.cat((enc_hidden[1][0], diag_hidden[0][1]), 1)),
+                           self.merge_c(torch.cat((enc_hidden[1][1], diag_hidden[1][1]), 1))))
+
+        else:
+            dec_hidden = diag_hidden
+        emb_out = self.embed_out(tgt)
+        init_output = self.make_init_decoder_output(emb_out[0])
+
+        outputs, dec_hidden, M = self.decoder(
+            emb_out, dec_hidden, M, context, init_output)
 
         return outputs
 

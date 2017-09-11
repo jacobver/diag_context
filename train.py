@@ -60,7 +60,7 @@ def eval(model, criterion, data):
         batch = data[i]
         outputs = model(batch)
         # exclude <s> from targets
-        targets = batch[1][1:]
+        targets = batch[-1][1:]
         loss, _, num_correct = memoryEfficientLoss(
             outputs, targets, model.generator, criterion, eval=True)
         total_loss += loss
@@ -108,7 +108,7 @@ def trainModel(model, trainData, validData, dataset, optim):
             model.zero_grad()
             outputs = model(batch)
             # Exclude <s> from targets.
-            targets = batch[1][1:]
+            targets = batch[-1][1:]
             loss, gradOutput, num_correct = memoryEfficientLoss(
                 outputs, targets, model.generator, criterion)
 
@@ -221,23 +221,34 @@ def main():
         checkpoint = torch.load(dict_checkpoint)
         dataset['dicts'] = checkpoint['dicts']
 
-    trainData = memories.Dataset(dataset['train']['src'],
-                                 dataset['train']['tgt'], opt.batch_size, opt.gpus, opt.context_size)
-    validData = memories.Dataset(dataset['valid']['src'],
-                                 dataset['valid']['tgt'], opt.batch_size, opt.gpus, opt.context_size,
-                                 volatile=True)
+    if opt.keys:
+        trainData = memories.Key_Dataset(
+            dataset['train'], opt.batch_size, opt.gpus, opt.context_size)
+        validData = memories.Key_Dataset(
+            dataset['valid'], opt.batch_size, opt.gpus, opt.context_size, volatile=True)
+        nr_train_points = len(dataset['train']['src_utts'])
+
+    else:
+        trainData = memories.Dataset(dataset['train']['src'],
+                                     dataset['train']['tgt'], opt.batch_size, opt.gpus, opt.context_size)
+        validData = memories.Dataset(dataset['valid']['src'],
+                                     dataset['valid']['tgt'], opt.batch_size, opt.gpus, opt.context_size,
+                                     volatile=True)
+        nr_train_points = len(dataset['train']['src'])
 
     dicts = dataset['dicts']
     print(' * vocabulary size. source = %d; target = %d' %
           (dicts['src'].size(), dicts['tgt'].size()))
     print(' * number of training sentences. %d' %
-          len(dataset['train']['src']))
+          nr_train_points)
     print(' * maximum batch size. %d' % opt.batch_size)
 
     print('Building model...')
 
     if opt.hier:
         model = memories.hierarchical_model.HierModel(opt, dicts)
+    if opt.keys:
+        model = memories.key_context_model.KeyContModel(opt, dicts)
     else:
         model = memories.memory_model.MemModel(opt, dicts)
 

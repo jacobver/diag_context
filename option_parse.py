@@ -22,15 +22,15 @@ def get_parser():
 
     parser.add_argument('-layers', type=int, default=2,
                         help='Number of layers in the LSTM encoder/decoder')
-    parser.add_argument('-rnn_size', type=int, default=500,
+    parser.add_argument('-rnn_size', type=int, default=300,
                         help='Size of LSTM hidden states')
-    parser.add_argument('-word_vec_size', type=int, default=500,
+    parser.add_argument('-word_vec_size', type=int, default=300,
                         help='Word embedding sizes')
     parser.add_argument('-input_feed', type=int, default=1,
                         help="""Feed the context vector at each time step as
                         additional input (via concatenation with the word
                         embeddings) to the decoder.""")
-    parser.add_argument('-attn', type=int, default=0)
+    parser.add_argument('-attn', type=int, default=1)
     parser.add_argument('-brnn', type=int, default=0,
                         help='Use a bidirectional encoder')
     parser.add_argument('-brnn_merge', default='concat',
@@ -56,7 +56,7 @@ def get_parser():
     parser.add_argument('-max_grad_norm', type=float, default=5,
                         help="""If the norm of the gradient vector exceeds this,
                         renormalize it to have the norm equal to max_grad_norm""")
-    parser.add_argument('-dropout', type=float, default=0.5,
+    parser.add_argument('-dropout', type=float, default=0.4,
                         help='Dropout probability; applied between LSTM stacks.')
     parser.add_argument('-curriculum', action="store_true",
                         help="""For this many epochs, order the minibatches based
@@ -67,7 +67,7 @@ def get_parser():
                         shuffle and re-assign mini-batches""")
 
     # learning rate
-    parser.add_argument('-learning_rate', type=float, default=0.0005,
+    parser.add_argument('-learning_rate', type=float, default=0.001,
                         help="""Starting learning rate. If adagrad/adadelta/adam is
                         used, then this is the global learning rate. Recommended
                         settings: sgd = 1, adagrad = 0.1,
@@ -94,8 +94,10 @@ def get_parser():
     parser.add_argument('-log_interval', type=int, default=10,
                         help="Print stats at this interval.")
 
-    parser.add_argument('-hier', type=int, default=1,
+    parser.add_argument('-hier', type=int, default=0,
                         help='hierarchical model')
+    parser.add_argument('-keys', type=int, default=1,
+                        help='use context of key words model')
 
     # Memory options
     parser.add_argument('-mem', default=None,
@@ -114,7 +116,7 @@ def get_parser():
                         help='in case of [dnc]: number of memory slots')
     parser.add_argument('-mem_size', type=int, default=100,
                         help='in case of [dnc]: size of memory slots')
-    parser.add_argument('-read_heads', type=int, default=2,
+    parser.add_argument('-read_heads', type=int, default=1,
                         help='in case of [dnc]: number of read heads')
     parser.add_argument('-share_M', type=int, default=1,
                         help='whther to share the memory between en- and decoder')

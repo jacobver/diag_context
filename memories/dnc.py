@@ -33,7 +33,7 @@ class DNC(nn.Module):
 
         self.dropout = nn.Dropout(opt.dropout)
         self.attn = GlobalAttention(
-            opt.word_vec_size) if opt.attn and mode == 'decode' else None
+            opt.word_vec_size) if opt.attn and mode == 'context_decode' else None
 
     '''
     input: embedded sequence (seq_sz x batch_sz x word_vec_sz)

@@ -136,6 +136,30 @@ class HierModel(nn.Module):
 
         return outputs
 
+    def hier_dnc_nse(self, input):
+
+        src = input[0]
+        tgt = input[1][:-1]
+
+        diag_out, diag_hidden, dnc_M, context, enc_hidden = self.hier_dnc_lstm_encode(
+            src)
+
+        if self.merge_hidden:
+            dec_hidden = ((self.merge_h(torch.cat((enc_hidden[0][0], diag_hidden[0][0]), 1)),
+                           self.merge_h(torch.cat((enc_hidden[0][1], diag_hidden[1][0]), 1))),
+                          (self.merge_c(torch.cat((enc_hidden[1][0], diag_hidden[0][1]), 1)),
+                           self.merge_c(torch.cat((enc_hidden[1][1], diag_hidden[1][1]), 1))))
+
+        else:
+            dec_hidden = diag_hidden
+        emb_out = self.embed_out(tgt)
+        init_output = self.make_init_decoder_output(emb_out[0])
+
+        outputs, dec_hidden, dncM = self.decoder(
+            emb_out, dec_hidden, dnc_M, context, init_output)
+
+        return outputs
+
     def dnc_dnc(self, input):
         src = input[0]  # .transpose(1, 2)
         tgt = input[1][:-1]  # .transpose(0, 1)

@@ -11,8 +11,8 @@ def experiment(opt):
     mem_str = opt.mem if opt.mem is not None else 'baseline'
     fname_extention = '%s_%s_cs%d' % (mem_str, data_name, opt.context_size)
 
-    log_fn = workdir + '/logs/exp_res_cs_%s.log' % fname_extention
-    dict_fn = workdir + '/logs/exp_res_cs_%s.pt' % fname_extention
+    log_fn = workdir + '/logs/exp_res_%s.log' % fname_extention
+    dict_fn = workdir + '/logs/exp_res_%s.pt' % fname_extention
 
     opt.seed = randint(1, 10000)
 
@@ -82,12 +82,17 @@ def dnc_dnc():
 
 def dnc_lstm():
     opt.attn = 1
-    opt.hier = 1
+    opt.keys = 1
     opt.mem = 'dnc_lstm'
-    opt.word_vec_size = 200
-    opt.mem_size = 120
-    opt.mem_slots = 48
+    opt.mem_size = 100
+    opt.mem_slots = 40
     experiment(opt)
+
+
+def lstm_lstm():
+    opt.mem = 'lstm_lstm'
+    opt.attn = 1
+    opt.key = 1
 
 
 if __name__ == "__main__":
@@ -97,12 +102,13 @@ if __name__ == "__main__":
     parser = option_parse.get_parser()
     opt = parser.parse_args()
 
-    for n in range(3):
-        for context_size in [2, 3, 4, 5, 7, 9, 11, 13, 15]:
-            opt.data = '%s/data/frames/frms_cs%d_sep.train.pt' % (
+    for n in range(1):
+        for context_size in [1, 2, 3, 4, 5, 7, 9]:
+            opt.data = '%s/data/frames/keycont/frms_keys_cs%d.train.pt' % (
                 workdir, context_size)
             opt.context_size = context_size
             if context_size > 5:
                 opt.batch_size = 16
 
+            lstm_lstm()
             dnc_lstm()

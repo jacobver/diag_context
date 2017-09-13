@@ -16,10 +16,11 @@ class DNC(nn.Module):
 
         opt.rnn_size = opt.word_vec_size if mode == 'diag_encode' else opt.rnn_size
 
-        self.rnn_sz = (opt.word_vec_size, None) if opt.layers == 1 else (
+        self.layers = 1  # opt.layers
+
+        self.rnn_sz = (opt.word_vec_size, None) if self.layers == 1 else (
             opt.rnn_size, output_size)
 
-        self.layers = opt.layers
         self.net_data = [] if opt.gather_net_data else None
 
         use_cuda = len(opt.gpus) > 0
@@ -29,7 +30,7 @@ class DNC(nn.Module):
         input_sz = 2 * opt.word_vec_size if self.input_feed else opt.word_vec_size
 
         self.controller = Controller(input_sz, output_size, opt.read_heads, opt.rnn_size,
-                                     opt.mem_size, opt.batch_size, opt.dropout, opt.layers)
+                                     opt.mem_size, opt.batch_size, opt.dropout, self.layers)
 
         self.dropout = nn.Dropout(opt.dropout)
         self.attn = GlobalAttention(

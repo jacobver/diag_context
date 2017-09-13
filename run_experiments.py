@@ -93,6 +93,16 @@ def lstm_lstm():
     opt.mem = 'lstm_lstm'
     opt.attn = 1
     opt.key = 1
+    experiment(opt)
+
+
+def dnc_single():
+    opt.attn = 1
+    opt.keys = 1
+    opt.mem = 'dnc_single'
+    opt.mem_size = 100
+    opt.mem_slots = 40
+    experiment(opt)
 
 
 if __name__ == "__main__":
@@ -111,4 +121,4 @@ if __name__ == "__main__":
                 opt.batch_size = 16
 
             lstm_lstm()
-            dnc_lstm()
+            dnc_single()

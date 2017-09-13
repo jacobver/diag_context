@@ -241,7 +241,7 @@ class Memory(nn.Module):
             the updated precedence vector
         """
 
-        reset_factor = 1 - reduce_sum(write_weight, 1)
+        reset_factor = 1 - reduce_sum(write_weight, 1, keep_dim=True)
         updated_precedence_vector = reset_factor.expand_as(
             precedence_vector) * precedence_vector + write_weight
         # apply_dict(locals())

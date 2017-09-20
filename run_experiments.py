@@ -96,9 +96,16 @@ def lstm_lstm():
     experiment(opt)
 
 
+def nse_tweak():
+    opt.mem = 'nse_tweak'
+    opt.attn = 1
+    opt.key = 1
+    experiment(opt)
+
+
 def dnc_single():
     opt.attn = 1
-    opt.keys = 1
+    opt.key = 1
     opt.mem = 'dnc_single'
     opt.mem_size = 100
     opt.mem_slots = 40
@@ -106,19 +113,20 @@ def dnc_single():
 
 
 if __name__ == "__main__":
-    # workdir = '..'
+    #workdir = '..'
     workdir = '/var/scratch/jverdega'
 
     parser = option_parse.get_parser()
     opt = parser.parse_args()
 
-    for n in range(1):
+    for n in range(3):
         for context_size in [1, 2, 3, 4, 5, 7, 9]:
             opt.data = '%s/data/frames/keycont/frms_keys_cs%d.train.pt' % (
                 workdir, context_size)
             opt.context_size = context_size
             if context_size > 5:
-                opt.batch_size = 16
+                opt.batch_size = 32
 
             lstm_lstm()
-            dnc_single()
+            nse_tweak()
+            #dnc_single()

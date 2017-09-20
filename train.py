@@ -119,6 +119,7 @@ def trainModel(model, trainData, validData, dataset, optim):
 
             num_words = targets.data.ne(onmt.Constants.PAD).sum()
             report_loss += loss
+
             report_num_correct += num_correct
             report_tgt_words += num_words
             # report_src_words += batch[0][1].data.sum()
@@ -150,6 +151,8 @@ def trainModel(model, trainData, validData, dataset, optim):
         print('Train perplexity: %g' % train_ppl)
         print('Train accuracy: %g' % (train_acc * 100))
 
+        if isnan(train_ppl):
+            return low_ppl, best_e, trn_ppls, val_ppls, checkpoint
         #  (2) evaluate on the validation set
         valid_loss, valid_acc = eval(model, criterion, validData)
         valid_ppl = math.exp(min(valid_loss, 100))

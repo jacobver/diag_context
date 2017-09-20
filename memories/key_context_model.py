@@ -72,17 +72,28 @@ class KeyContModel(nn.Module):
         generate 'memories' by putting context and initial utt through own bi_lstm
         '''
 
-        utt, utt_state = self.utt_encoder(outputs)
+        #utt, utt_state = self.utt_encoder(outputs)
 
-        utt_state = utt_state[0].view_as(enc_hidden[0][0])
+        #utt_state = utt_state[0].view_as(enc_hidden[0][0])
+
+        utt_state = (dec_hidden[0][1], dec_hidden[1][1])
+        u_mask = torch.sum(outputs, dim=2).eq(Constants.PAD).transpose(0,1)
 
         # cat all keys in context
         context = src_key.view(-1, outputs.size(1))  # batch last
-        context = self.embed_in(context)
-        context, cont_state = self.context_encoder(context)
-        cont_state = cont_state[0].view_as(enc_hidden[0][0])
+        c_mask = context.eq(Constants.PAD).transpose(0,1)
 
-        return self.context_attention(utt.transpose(0, 1), utt_state, context.transpose(0, 1), cont_state)
+        context = self.embed_in(context)
+        context, enc_hidden_cont = self.context_encoder(context)
+        cont_state = (self.fix_enc_hidden(enc_hidden_cont[0]).squeeze(0),
+                      self.fix_enc_hidden(enc_hidden_cont[1]).squeeze(0))
+
+        #cont_state[0].view_as(enc_hidden[0][0])
+        # cont_state = Variable(enc_hidden[0][0].data.new(
+        #    enc_hidden[0][0].size()).zero_())
+
+        self.context_attention.apply_mask(u_mask, c_mask)
+        return self.context_attention(outputs.transpose(0, 1), utt_state, context.transpose(0, 1), cont_state)
 
     def lstm_lstm(self, input):
 

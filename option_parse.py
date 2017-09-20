@@ -58,6 +58,8 @@ def get_parser():
                         renormalize it to have the norm equal to max_grad_norm""")
     parser.add_argument('-dropout', type=float, default=0.4,
                         help='Dropout probability; applied between LSTM stacks.')
+    parser.add_argument('-dropout_nse', type=float, default=0.2,
+                        help='Dropout probability; applied between LSTM stacks.')
     parser.add_argument('-curriculum', action="store_true",
                         help="""For this many epochs, order the minibatches based
                         on source sequence length. Sometimes setting this to 1 will

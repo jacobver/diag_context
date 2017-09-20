@@ -81,7 +81,7 @@ class StackedLSTM(nn.Module):
             h_1 += [h_1_i]
             c_1 += [c_1_i]
 
-        #h_1 = torch.stack(h_1)
-        #c_1 = torch.stack(c_1)
+        h_1 = torch.stack(h_1)
+        c_1 = torch.stack(c_1)
 
         return input, (h_1, c_1)

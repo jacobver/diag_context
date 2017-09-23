@@ -68,9 +68,10 @@ def parse_word_vecs(vecs_text_file, dimension):
             word_vec_line = line.split(' ')
             vec = [float(element) for element in word_vec_line[1:]]
             assert len(vec) == dimension
-            word_vecs[word_vec_line[0]] = torch.Tensor(vec)
+            word = word_vec_line[0].lower()
+            word_vecs[word] = torch.Tensor(vec)
 
-    vecs_pt_file = '.'.join(vecs_text_file.split('.')[:-1] + ['pt'])
+    vecs_pt_file = '.'.join(vecs_text_file.split('.')[:-1] + ['low'] + ['pt'])
     torch.save(word_vecs, vecs_pt_file)
 
 
@@ -81,13 +82,19 @@ def make_pre_embedding(dict_file, vectors, vec_size):
     vecs = vectors if isinstance(vectors, dict) else torch.load(vectors)
     assert vecs['any'].size(0) == vec_size
     embedding = torch.Tensor(dictionary.size(), vec_size)
+    unknowns = 0
     for i in range(dictionary.size()):
         word = dictionary.getLabel(i)
         if word == Constants.PAD_WORD:
             embedding[i] = torch.zeros(vec_size)
         else:
             embedding[i] = vecs[word] if word in vecs else vecs[Constants.UNK_WORD]
+            if word not in vecs:
+                print( word )
+                unknowns +=1
 
+    print( ' unknowns in dict : %d'%unknowns)
+    print(' saving ... ')
     emb_file = '.'.join(dict_file.split('.')[:-1] + ['emb.pt'])
     torch.save(embedding, emb_file)
-    return embedding
+    #return embedding

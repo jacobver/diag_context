@@ -9,7 +9,7 @@ def experiment(opt):
     data_name = opt.data.split('/')[-1].split('.')[0]
     print(' data name : ' + data_name)
     mem_str = opt.mem if opt.mem is not None else 'baseline'
-    fname_extention = '%s_%s_cs%d' % (mem_str, data_name, opt.context_size)
+    fname_extention = '%s_%s' % (mem_str, data_name)
 
     log_fn = workdir + '/logs/exp_res_%s.log' % fname_extention
     dict_fn = workdir + '/logs/exp_res_%s.pt' % fname_extention
@@ -120,9 +120,10 @@ if __name__ == "__main__":
     opt = parser.parse_args()
 
     for n in range(3):
-        for context_size in [1, 2, 3, 4, 5, 7, 9]:
-            opt.data = '%s/data/frames/keycont/frms_keys_cs%d.train.pt' % (
+        for context_size in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]:
+            opt.data = '%s/data/frames/sep_context/frms_keys_cs%d.train.pt' % (
                 workdir, context_size)
+            opt.pre_word_vecs = '%s/data/frames/frms.src.emb.pt' 
             opt.context_size = context_size
             if context_size > 5:
                 opt.batch_size = 32

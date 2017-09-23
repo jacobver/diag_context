@@ -32,8 +32,7 @@ class KeyContModel(nn.Module):
             self.context_attention = reasoning_nse.Tweak(opt)
 
         if mem[0] == 'lstm':
-            self.context_encoder = bi_lstm(2)
-
+            self.context_encoder =  bi_lstm(2)
         if mem[0] == 'dnc':
             opt.dropout = .6
             self.context_encoder = dnc.DNC(opt, 'encode')
@@ -192,6 +191,7 @@ class KeyContModel(nn.Module):
 
     def cont_attn(self, init_outputs, encoded_cont):
         outputs = []
+
         for out_word in init_outputs.split(1):
             out_final, _ = self.context_attention(
                 out_word.squeeze(0), encoded_cont.transpose(0, 1))

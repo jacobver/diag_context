@@ -38,7 +38,7 @@ def multi_file(args):
     for f in [f for f in listdir(args.dir) if f[-2:] == 'pt']:
         print(f)
         rt = torch.load(args.dir + f)
-        mem_str = '_'.join(f.split('_')[3:5])
+        mem_str = '_'.join(f.split('_')[2:4])
         if mem_str not in val_res:
             val_res[mem_str] = {i: {'avg': 0, 'std': 0} for i in css}
 
@@ -49,11 +49,15 @@ def multi_file(args):
             if isinstance(n, int):  # and 'hier' in rt[n]['args']:  # ['hier']:
 
                 cs = rt[n]['args']['context_size']
-                vals += [min(rt[n]['val_ppls'])]
-                # if nparams is not None:
-                #    assert nparams == rt[n]['nparams']
-                # else:
-                #    nparams = rt[n]['nparams']
+                val_ppls = rt[n]['val_ppls']
+                print(val_ppls)
+                val = min(val_ppls)
+                if not np.isnan(val):
+                    vals += [val]
+                if nparams is not None:
+                    assert nparams == rt[n]['nparams']
+                else:
+                    nparams = rt[n]['nparams']
 
         val_res[mem_str]['nparams'] = nparams
         val_res[mem_str][cs]['avg'] = np.average(vals)

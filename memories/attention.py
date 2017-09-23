@@ -56,3 +56,39 @@ class GlobalAttention(nn.Module):
         contextOutput = self.tanh(self.linear_out(contextCombined))
 
         return contextOutput, attn
+
+
+
+class ContextAttention(nn.Module):
+    def __init__(self, out_dim, in_dim):
+        super(ContextAttention, self).__init__()
+        self.linear_in = nn.Linear(out_dim, in_dim, bias=False)
+        self.sm = nn.Softmax()
+        self.linear_out = nn.Linear(in_dim * 2, out_dim, bias=False)
+        self.tanh = nn.Tanh()
+        self.mask = None
+
+    def applyMask(self, mask):
+        self.mask = mask
+
+    def forward(self, input, context):
+        """
+        input: batch x dim
+        context: batch x sourceL x dim
+        """
+        print(' att input : '+ str(input.size()))
+        targetT = self.linear_in(input).unsqueeze(2)  # batch x dim x 1
+
+        # Get attention
+        attn = torch.bmm(context, targetT).squeeze(2)  # batch x sourceL
+        if self.mask is not None:
+            attn.data.masked_fill_(self.mask, -float('inf'))
+        attn = self.sm(attn)
+        attn3 = attn.view(attn.size(0), 1, attn.size(1))  # batch x 1 x sourceL
+
+        weightedContext = torch.bmm(attn3, context).squeeze(1)  # batch x dim
+        contextCombined = torch.cat((weightedContext, input), 1)
+
+        contextOutput = self.tanh(self.linear_out(contextCombined))
+
+        return contextOutput, attn

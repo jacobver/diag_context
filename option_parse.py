@@ -90,7 +90,7 @@ def get_parser():
                         See README for specific formatting instructions.""")
 
     # GPU
-    parser.add_argument('-gpus', default=[0], nargs='+', type=int,
+    parser.add_argument('-gpus', type=int,
                         help="Use CUDA on the listed devices.")
 
     parser.add_argument('-log_interval', type=int, default=10,
@@ -98,8 +98,12 @@ def get_parser():
 
     parser.add_argument('-hier', type=int, default=0,
                         help='hierarchical model')
-    parser.add_argument('-keys', type=int, default=1,
+    parser.add_argument('-keys', type=int, default=0,
                         help='use context of key words model')
+    parser.add_argument('-acts', type=int, default=1,
+                        help='use context of dialogue acts')
+    parser.add_argument('-act_vec_size', type=int, default=25,
+                        help='use context of dialogue acts')
 
     # Memory options
     parser.add_argument('-mem', default=None,

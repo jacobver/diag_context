@@ -10,7 +10,8 @@ import onmt
 class Dataset(object):
     def __init__(self, data, batchSize, cuda, context_size, volatile=False):
         self.src_utts = data['src_utts']
-        self.src_keys = data['src_cont']
+        self.src_keys = data['src_keys']
+        #self.src_keys = data['src_cont']
         assert len(self.src_keys) == len(self.src_utts)
         if 'tgt_utts' in data:
             self.tgt = data['tgt_utts']

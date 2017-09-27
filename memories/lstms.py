@@ -49,6 +49,8 @@ class LSTMseq(nn.Module):
 
             output, hidden = self.rnn(emb_t, hidden)
             if self.attn is not None:
+                #print(' output size : '+ str(output.size()))
+                #print(' context size : '+ str(context.size()))
                 output, attn = self.attn(output, context.transpose(0, 1))
             else:
                 attn = None

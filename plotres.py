@@ -5,7 +5,7 @@ import argparse
 from os import listdir
 
 parser = argparse.ArgumentParser()
-parser.add_argument('-dir', type=str, default=[''],
+parser.add_argument('-dir', type=str, default='',
                     help='directory containing .pt files')
 
 parser.add_argument('-file', type=str, default='',
@@ -17,19 +17,22 @@ parser.add_argument('-mem', type=str, default='',
 def main(args):
 
     res = multi_file(args)
-    x = range(12)
+    x = range(7)
     for mem in res.keys():  # ,'dnc_lstm']:
-        print(' memory : ' + mem)
-        y = [res[mem][xi]['avg'] for xi in x]
-        print(y)
+        #print(' memory : ' + mem)
+        y = [res[mem][xi]['min'] for xi in x]
+        #print(y)
         e = [res[mem][xi]['std'] for xi in x]
-
-        #plt.plot(x, y, linestyle='None')
-        plt.errorbar(x, y, e, linestyle='None', marker='^')
+        print(y)
+        plt.scatter(x, y)
+        #plt.errorbar(x, y, e, linestyle='None', marker='^')
 
     plt.legend([k + ' (' + str(res[k]['nparams']) + ')' for k in res.keys()])
+    plt.ylim(14,22)
+    plt.ylabel('ppl')
+    plt.xlabel('context size')
+    
     plt.show()
-
 
 def multi_file(args):
     css = range(16)
@@ -40,7 +43,7 @@ def multi_file(args):
         rt = torch.load(args.dir + f)
         mem_str = '_'.join(f.split('_')[2:4])
         if mem_str not in val_res:
-            val_res[mem_str] = {i: {'avg': 0, 'std': 0} for i in css}
+            val_res[mem_str] = {i: {'avg': 0, 'std': 0, 'min':0} for i in css}
 
         vals = []
         cs = 0
@@ -50,18 +53,21 @@ def multi_file(args):
 
                 cs = rt[n]['args']['context_size']
                 val_ppls = rt[n]['val_ppls']
-                print(val_ppls)
+                #print(val_ppls)
                 val = min(val_ppls)
                 if not np.isnan(val):
                     vals += [val]
                 if nparams is not None:
-                    assert nparams == rt[n]['nparams']
+                    print(nparams)
+                    print(rt[n]['nparams'])
+                    #assert nparams == rt[n]['nparams']
                 else:
                     nparams = rt[n]['nparams']
 
         val_res[mem_str]['nparams'] = nparams
         val_res[mem_str][cs]['avg'] = np.average(vals)
         val_res[mem_str][cs]['std'] = np.std(vals)
+        val_res[mem_str][cs]['min'] = np.min(vals) if len(vals)>0 else 0
 
     return val_res
 

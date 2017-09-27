@@ -35,6 +35,11 @@ class WOZ(object):
             nn.Linear(model_opt.word_vec_size, self.tgt_dict.size()),
             nn.LogSoftmax())
 
+        print(checkpoint['opt'])
+        print()
+        print(model)
+        print()
+        print(checkpoint['model'].keys())
         model.load_state_dict(checkpoint['model'])
         generator.load_state_dict(checkpoint['generator'])
 
@@ -108,7 +113,7 @@ class WOZ(object):
 
             M = self.model.encoder.make_init_M(batch_size)
 
-            emb_in = self.model.word_lut(src)
+            emb_in = self.model.embed_in(src)
             return self.model.encoder(emb_in, hidden, M)
 
         #  (1) run the encoder on the src
@@ -131,7 +136,7 @@ class WOZ(object):
                     emb_out, decStates, context, init_output)
             elif self.mem == 'dnc_dnc':
                 decM = M
-                emb_out = self.model.word_lut(tgtBatch[:-1])
+                #emb_out = self.model.word_lut(tgtBatch[:-1])
                 decOut, decStates, decM = self.model.decoder(
                     emb_out, decStates, decM)
 

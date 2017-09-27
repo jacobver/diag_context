@@ -224,7 +224,7 @@ def main():
         checkpoint = torch.load(dict_checkpoint)
         dataset['dicts'] = checkpoint['dicts']
 
-    if opt.keys:
+    if opt.keys or opt.acts:
         trainData = memories.Key_Dataset(
             dataset['train'], opt.batch_size, opt.gpus, opt.context_size)
         validData = memories.Key_Dataset(
@@ -252,6 +252,8 @@ def main():
         model = memories.hierarchical_model.HierModel(opt, dicts)
     if opt.keys:
         model = memories.key_context_model.KeyContModel(opt, dicts)
+    if opt.acts:
+        model = memories.act_context_model.KeyContModel(opt, dicts)
     else:
         model = memories.memory_model.MemModel(opt, dicts)
 
@@ -372,6 +374,6 @@ def gather_data(model, data, dicts):  # , n_samples):
 if __name__ == "__main__":
     parser = option_parse.get_parser()
     opt = parser.parse_args()
-    opt.gpus = [0]
+    opt.gpus = []
 
     main()

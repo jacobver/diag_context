@@ -150,10 +150,10 @@ class Memory(nn.Module):
         #    flat_mapped_free_list,
         #    flat_unordered_allocation_weight
         #)
-        flat_ordered_weights = flat_container.scatter_(0,
-                                                       flat_mapped_free_list.cpu(),
-                                                       flat_unordered_allocation_weight.cpu()
-                                                       )
+        flat_ordered_weights = flat_container.scatter(0,
+                                                      flat_mapped_free_list.cpu(),
+                                                      flat_unordered_allocation_weight.cpu()
+                                                      )
         flat_ordered_weights = to_device(flat_ordered_weights, free_list)
         # apply_dict(locals())
         # return flat_ordered_weights.view(self.batch_size, self.mem_slot)

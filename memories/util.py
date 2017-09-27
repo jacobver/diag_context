@@ -90,7 +90,7 @@ def make_pre_embedding(dict_file, vectors, vec_size):
         else:
             embedding[i] = vecs[word] if word in vecs else vecs[Constants.UNK_WORD]
             if word not in vecs:
-                print( word )
+                print( word)
                 unknowns +=1
 
     print( ' unknowns in dict : %d'%unknowns)

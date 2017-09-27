@@ -16,7 +16,8 @@ class DNC(nn.Module):
 
         opt.rnn_size = opt.word_vec_size if mode == 'diag_encode' else opt.rnn_size
 
-        self.layers = 1  # opt.layers
+        
+        self.layers =  opt.layers
 
         self.rnn_sz = (opt.word_vec_size, None) if self.layers == 1 else (
             opt.rnn_size, output_size)

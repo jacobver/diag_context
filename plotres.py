@@ -28,7 +28,7 @@ def main(args):
         #plt.errorbar(x, y, e, linestyle='None', marker='^')
 
     plt.legend([k + ' (' + str(res[k]['nparams']) + ')' for k in res.keys()])
-    plt.ylim(14,22)
+    plt.ylim(18,30)
     plt.ylabel('ppl')
     plt.xlabel('context size')
     

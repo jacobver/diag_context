@@ -3,6 +3,7 @@ models/*
 final_models/*
 logs/*
 logs0/*
+predictions/*
 *__pycache__*
 #*
 *#

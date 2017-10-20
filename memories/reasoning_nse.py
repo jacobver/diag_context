@@ -43,11 +43,13 @@ class Read(nn.Module):
         #print(' utt_state size : ' + str(utt_state.size()))
         #print(' cont_state size : ' + str(cont_state.size()))
 
+        read_locs = {}
         input = torch.cat([cont_state, utt_state], 1)
         h, c = self.read(input, hidden)
 
         self.mask = self.masks['u']
         utt_state, loc = self.attend(utt_M, h)
+        utt_loc = loc
 
         loc = loc.masked_fill(self.masks['u'],float('inf'))
         z = self.sigmoid(loc)
@@ -55,9 +57,10 @@ class Read(nn.Module):
             
         self.mask = self.masks['c']
         cont_state, loc = self.attend(cont_M, utt_state)
+        cont_loc = loc
 
         #print( ' === done reading === ')
-        return (h, c), utt_state, cont_state, z
+        return (h, c), utt_state, cont_state, z, (utt_loc, cont_loc)
 
 
 class Write(nn.Module):
@@ -153,14 +156,17 @@ class Tweak(nn.Module):
         cont_state = cont_state[0]
 
         tweak = self.rewrite_n
+        utt_locs, cont_locs = [], []
         while tweak:
-            hr, utt_state, cont_state, z = self.read(
+            hr, utt_state, cont_state, z, (utt_loc, cont_loc) = self.read(
                 hr, utt, utt_state, cont, cont_state)
 
+            utt_locs += [utt_loc]
+            cont_locs += [cont_loc]
             read = self.compose(torch.cat((hr[0], utt_state, cont_state), 1))
 
             hw, utt = self.write(hw, cont_state, z, utt, read)
 
             tweak -= 1
 
-        return utt.transpose(0, 1).contiguous()
+        return utt.transpose(0, 1).contiguous(), (torch.stack(utt_locs),torch.stack(cont_locs))

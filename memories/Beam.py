@@ -53,7 +53,6 @@ class Beam(object):
         `attnOut`: Compute and update the beam search.
 
         Parameters:
-
         * `wordLk`- probs of advancing from the last step (K x words)
         * `attnOut`- attention at the last step
 

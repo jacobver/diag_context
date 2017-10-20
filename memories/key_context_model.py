@@ -92,7 +92,9 @@ class KeyContModel(nn.Module):
         #    enc_hidden[0][0].size()).zero_())
 
         self.context_attention.apply_mask(u_mask, c_mask)
-        return self.context_attention(outputs.transpose(0, 1), utt_state, context.transpose(0, 1), cont_state)
+        outputs, read_locs = self.context_attention(outputs.transpose(0, 1), utt_state, context.transpose(0, 1), cont_state)
+
+        return outputs, read_locs
 
     def lstm_lstm(self, input):
 

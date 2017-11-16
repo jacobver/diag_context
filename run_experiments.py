@@ -1,5 +1,5 @@
 from __future__ import division
-import train
+import train0 as train
 import option_parse
 import torch
 from numpy.random import randint
@@ -56,34 +56,10 @@ def experiment(opt):
     torch.save(res_dict, dict_fn)
 
 
-def baseline():
-    opt.mem = 'lstm_lstm'
-    opt.dropout = .4
-    for attn in [1, 0]:
-        opt.attn = attn
-        opt.input_feed = attn
-
-        experiment(opt)
-
-
-def dnc_dnc():
-    opt.share_M = 1
-    opt.mem_size = 100
-    opt.mem_slots = 40
-    opt.read_heads = 2
-    opt.rnn_size = 400
-    opt.mem = 'dnc_dnc'
-    for attn in [1, 0]:
-        opt.attn = attn
-        opt.input_feed = attn
-
-    experiment(opt)
-
-
-def dnc_lstm():
+def lstm_dnc():
     opt.attn = 1
     opt.keys = 1
-    opt.mem = 'dnc_lstm'
+    opt.mem = 'lstm_dnc'
     opt.mem_size = 100
     opt.mem_slots = 40
     experiment(opt)
@@ -92,24 +68,9 @@ def dnc_lstm():
 def lstm_lstm():
     opt.mem = 'lstm_lstm'
     opt.attn = 1
-    opt.key = 1
     experiment(opt)
 
 
-def nse_tweak():
-    opt.mem = 'nse_tweak'
-    opt.attn = 1
-    opt.key = 1
-    experiment(opt)
-
-
-def dnc_single():
-    opt.attn = 1
-    opt.key = 1
-    opt.mem = 'dnc_single'
-    opt.mem_size = 100
-    opt.mem_slots = 40
-    experiment(opt)
 
 
 if __name__ == "__main__":
@@ -119,15 +80,16 @@ if __name__ == "__main__":
     parser = option_parse.get_parser()
     opt = parser.parse_args()
 
+    opt.gpus = [0]
+    
     for n in range(3):
-        for context_size in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]:
-            opt.data = '%s/data/frames/sep_context/frms_keys_cs%d.train.pt' % (
+        for context_size in [1, 2, 3, 4, 5, 6, 7, 8, 9]:
+            opt.data = '%s/data/switchboard/sw_tot_cs%d.train.pt' % (
                 workdir, context_size)
-            opt.pre_word_vecs = '%s/data/frames/frms.src.emb.pt' 
+            opt.pre_word_vecs = '%s/data/switchboard/sw_tot.emb.pt' %workdir
             opt.context_size = context_size
             if context_size > 5:
                 opt.batch_size = 32
 
             lstm_lstm()
-            nse_tweak()
-            #dnc_single()
+            lstm_dnc()

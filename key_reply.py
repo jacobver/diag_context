@@ -93,6 +93,7 @@ def main():
         predWordsTotal += sum(len(x[0]) for x in predBatch)
         src_batch, context_batch, tgt_batch = batch
 
+
         for j,(base, pred,src, context, tgt, score, utt_locs, cont_locs) in enumerate(zip(
                 base_out.split(1),
                 predBatch,src_batch.split(1,1),
@@ -100,7 +101,13 @@ def main():
                 predScore,
                 attn_locs[0].split(1,1),
                 attn_locs[1].split(1,1))):
-
+            '''
+            for j,(base, pred,src, context, tgt, score) in enumerate(zip(
+                    base_out.split(1),
+                    predBatch,src_batch.split(1,1),
+                    context_batch.split(1,2),tgt_batch.split(1,1),
+                    predScore )):
+            '''
             if score.data[0] > -30:
                 res_i = i*30 + j
 
@@ -140,16 +147,20 @@ def main():
                     res[res_i]['tgt'] = tgt_sen
                 else:
                     assert res[res_i]['tgt'] == tgt_sen
-
-                if woz.mem == 'nse_tweak ':
+                    
+                if woz.mem == 'nse_tweak':
                     res[res_i]['nse']['base'] = base
                     res[res_i]['nse']['pred'] = pred
                     res[res_i]['nse']['score'] = score.data[0]
-                    utt_locs = uttlocs.squeeze()
-                    res[res_i]['nse']['utt_attn'] = utt_locs.masked_select(utt_loc.gt(0)).view(5,-1)
+                    utt_locs = utt_locs.squeeze()
+                    #print(utt_locs)
+                    res[res_i]['nse']['utt_attn'] = utt_locs#.masked_select(utt_locs.ne(1)).view(5,-1)
                     cont_locs = cont_locs.squeeze()
-                    res[res_i]['nse']['cont_attn'] = cont_loc.masked_select(cont_loc.gt(0)).view(5,-1)
+                    res[res_i]['nse']['cont_attn'] = cont_locs#.masked_select(cont_locs.gt(0)).view(5,-1)
 
+                ch = input(' --> ')
+                if ch == 'q':
+                    break
     torch.save(res,opt.output)
     #outF.close()
 

@@ -224,20 +224,10 @@ def main():
         checkpoint = torch.load(dict_checkpoint)
         dataset['dicts'] = checkpoint['dicts']
 
-    if opt.keys or opt.acts:
-        trainData = memories.Key_Dataset(
-            dataset['train'], opt.batch_size, opt.gpus, opt.context_size)
-        validData = memories.Key_Dataset(
-            dataset['valid'], opt.batch_size, opt.gpus, opt.context_size, volatile=True)
-        nr_train_points = len(dataset['train']['src_utts'])
-
-    else:
-        trainData = memories.Dataset(dataset['train']['src'],
-                                     dataset['train']['tgt'], opt.batch_size, opt.gpus, opt.context_size)
-        validData = memories.Dataset(dataset['valid']['src'],
-                                     dataset['valid']['tgt'], opt.batch_size, opt.gpus, opt.context_size,
-                                     volatile=True)
-        nr_train_points = len(dataset['train']['src'])
+    trainData = memories.Dataset(dataset['train'], opt.batch_size, opt.gpus, opt.context_size)
+    validData = memories.Dataset(dataset['valid'], opt.batch_size, opt.gpus, opt.context_size,
+                                 volatile=True)
+    nr_train_points = len(dataset['train']['src_utts'])
 
     dicts = dataset['dicts']
     print(' * vocabulary size. source = %d; target = %d' %
@@ -310,10 +300,6 @@ def main():
     nParams = sum([p.nelement() for p in model.parameters()])
     print('* number of parameters: %d' % nParams)
 
-    if opt.gather_net_data:
-        # , opt.n_samples)
-        return gather_data(model, validData, dataset['dicts'])
-
     low_ppl, best_e, trn_ppls, val_ppls, checkpoint = trainModel(
         model, trainData, validData, dataset, optim)
     return low_ppl, best_e, trn_ppls, val_ppls, checkpoint, opt, nParams
@@ -367,6 +353,6 @@ def gather_data(model, data, dicts):  # , n_samples):
 if __name__ == "__main__":
     parser = option_parse.get_parser()
     opt = parser.parse_args()
-    opt.gpus = 0
+    opt.gpus = [0]
 
     main()

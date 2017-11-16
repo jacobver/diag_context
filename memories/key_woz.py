@@ -24,6 +24,7 @@ class KeyWOZ(object):
         self.src_dict = checkpoint['dicts']['src']
         self.tgt_dict = checkpoint['dicts']['tgt']
 
+        model_opt.pre_word_vecs = None
         if model_opt.pre_word_vecs is not None:
             embs = '/'.join(model_opt.pre_word_vecs.split('/')[-3:])
             model_opt.pre_word_vecs = '../'+embs 
@@ -200,7 +201,7 @@ class KeyWOZ(object):
         init_outputs = torch.stack(init_outputs)
         base_outs = torch.stack(base_outs)
 
-        
+        attn_locs = None
         if self.mem == 'lstm_lstm':
             outputs = self.model.cont_attn(init_outputs, encoded_context)
         if self.mem == 'dnc_single':

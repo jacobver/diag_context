@@ -38,10 +38,12 @@ def multi_file(args):
     css = range(16)
 
     val_res = {}
-    for f in [f for f in listdir(args.dir) if f[-2:] == 'pt']:
+    for f in [f for f in listdir(args.dir) if f[-2:] == 'pt']: # and 'single' not in f]:
         print(f)
         rt = torch.load(args.dir + f)
-        mem_str = '_'.join(f.split('_')[2:4])
+        mem_str = '_'.join(f.split('_')[2:3])
+        if mem_str == 'lstm':
+            mem_str = 'attn'
         if mem_str not in val_res:
             val_res[mem_str] = {i: {'avg': 0, 'std': 0, 'min':0} for i in css}
 

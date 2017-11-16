@@ -49,7 +49,7 @@ class Read(nn.Module):
 
         self.mask = self.masks['u']
         utt_state, loc = self.attend(utt_M, h)
-        utt_loc = loc
+        utt_loc = loc.masked_fill(self.masks['u'],0)
 
         loc = loc.masked_fill(self.masks['u'],float('inf'))
         z = self.sigmoid(loc)
@@ -84,9 +84,9 @@ class Write(nn.Module):
         print(' mask sum : '+ str(torch.sum(self.mask.eq(1))))
         '''     
         M = self.update_M(info, z, M0)
-        M = self.gate_M(hw, c, M0, M)
+        hid, M = self.gate_M(hw, c, M0, M)
 
-        return M
+        return hid, M
 
     def gate_M(self, hw, c, M0, M1):
 
@@ -160,8 +160,8 @@ class Tweak(nn.Module):
         while tweak:
             hr, utt_state, cont_state, z, (utt_loc, cont_loc) = self.read(
                 hr, utt, utt_state, cont, cont_state)
-
             utt_locs += [utt_loc]
+
             cont_locs += [cont_loc]
             read = self.compose(torch.cat((hr[0], utt_state, cont_state), 1))
 

@@ -17,6 +17,8 @@ def get_parser():
     parser.add_argument('-train_from', default='', type=str,
                         help="""If training from a checkpoint then this is the
                         path to the pretrained model.""")
+    parser.add_argument('-context_size', type=int, default=3,
+                        help='Number of utterances in context')
 
     # Model options
 
@@ -31,11 +33,6 @@ def get_parser():
                         additional input (via concatenation with the word
                         embeddings) to the decoder.""")
     parser.add_argument('-attn', type=int, default=1)
-    parser.add_argument('-brnn', type=int, default=0,
-                        help='Use a bidirectional encoder')
-    parser.add_argument('-brnn_merge', default='concat',
-                        help="""Merge action for the bidirectional hidden states:
-                        [concat|sum]""")
 
     # Optimization options
     parser.add_argument('-batch_size', type=int, default=32,
@@ -93,29 +90,15 @@ def get_parser():
     parser.add_argument('-gpus', type=int,
                         help="Use CUDA on the listed devices.")
 
-    parser.add_argument('-log_interval', type=int, default=10,
+    parser.add_argument('-log_interval', type=int, default=50,
                         help="Print stats at this interval.")
 
-    parser.add_argument('-hier', type=int, default=0,
-                        help='hierarchical model')
-    parser.add_argument('-keys', type=int, default=0,
-                        help='use context of key words model')
-    parser.add_argument('-acts', type=int, default=1,
-                        help='use context of dialogue acts')
     parser.add_argument('-act_vec_size', type=int, default=25,
                         help='use context of dialogue acts')
 
     # Memory options
     parser.add_argument('-mem', default=None,
                         help='which type of memory to use, default: None')
-    parser.add_argument('-hops', type=int, default=8,
-                        help='in case of [n2n]: number of computational hops')
-    parser.add_argument('-linear_start', type=int, default=1,
-                        help='in case of [n2n]: completely linear model to quickstart training')
-    parser.add_argument('-context_size', type=int, default=2,
-                        help='in case of [nse]: number of encoded memories to read')
-    parser.add_argument('-merge_hidden', type=int, default=0,
-                        help='if 0: only diag hidden is used for decoder, else merged via linear with sequence hidden')
 
     # DNC options
     parser.add_argument('-mem_slots', type=int, default=40,
@@ -124,17 +107,10 @@ def get_parser():
                         help='in case of [dnc]: size of memory slots')
     parser.add_argument('-read_heads', type=int, default=1,
                         help='in case of [dnc]: number of read heads')
-    parser.add_argument('-share_M', type=int, default=1,
-                        help='whther to share the memory between en- and decoder')
 
-    # hypertune specific
+    # hypertune options
     parser.add_argument('-prev_opts', default=None,
                         help='pkl file with previously tried options')
-
-    # vizualization
-    parser.add_argument('-gather_net_data', type=int, default=0,
-                        help='save hidden states and memory specific data')
-    parser.add_argument('-n_samples', type=int, default=10)
 
     # random_seed
     parser.add_argument('-seed', type=int, default=-1,

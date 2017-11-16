@@ -154,6 +154,8 @@ class Controller(nn.Module):
         flat_read_vectors = last_read_vectors.view(
             -1, self.mem_size * self.read_heads)
 
+        #print( ' X size : '+str(X.size()))
+        #print( ' frv size : '+str(flat_read_vectors.size()))
         complete_input = torch.cat((X, flat_read_vectors), 1)
         #nn_output, nn_state = None, None
 
@@ -161,7 +163,6 @@ class Controller(nn.Module):
             rnn_state = self.rnn(complete_input, rnn_state)
             nn_output = rnn_state[0]
         else:
-
             h_l1, c_l1 = self.rnn(complete_input, rnn_state[0])
             hidden_l1 = (self.dropout(h_l1), c_l1)
             hidden_l2 = self.rnn_l2(hidden_l1[0], rnn_state[1])

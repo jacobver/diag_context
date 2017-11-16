@@ -12,17 +12,13 @@ class DNC(nn.Module):
 
         self.input_feed = opt.input_feed if mode == 'decode' else 0
 
-        output_size = opt.word_vec_size // 2 if mode == 'bla_diag_encode' else opt.word_vec_size
-
         opt.rnn_size = opt.word_vec_size if mode == 'diag_encode' else opt.rnn_size
 
         
-        self.layers =  1 #opt.layers
+        self.layers =  opt.layers
 
         self.rnn_sz = (opt.word_vec_size, None) if self.layers == 1 else (
-            opt.rnn_size, output_size)
-
-        self.net_data = [] if opt.gather_net_data else None
+            opt.rnn_size, opt.word_vec_size)
 
         use_cuda = len(opt.gpus) > 0
         self.memory = Memory(opt.mem_slots, opt.mem_size,
@@ -30,12 +26,12 @@ class DNC(nn.Module):
 
         input_sz = 2 * opt.word_vec_size if self.input_feed else opt.word_vec_size
 
-        self.controller = Controller(input_sz, output_size, opt.read_heads, opt.rnn_size,
-                                     opt.mem_size, opt.batch_size, opt.dropout)#, self.layers)
+        self.controller = Controller(input_sz, opt.word_vec_size, opt.read_heads, opt.rnn_size,
+                                     opt.mem_size, opt.batch_size, opt.dropout,  self.layers)
 
         self.dropout = nn.Dropout(opt.dropout)
         self.attn = GlobalAttention(
-            opt.word_vec_size) if opt.attn and mode == 'context_decode' else None
+            opt.word_vec_size) if opt.attn and mode == 'decode' else None
 
     '''
     input: embedded sequence (seq_sz x batch_sz x word_vec_sz)
@@ -136,16 +132,15 @@ class DNC(nn.Module):
 
         # apply_dict(locals())
 
-        if self.net_data is not None:
-            packed_memory_view = {
-                'free_gates':       torch.stack(free_gates_time),
-                'allocation_gates': torch.stack(allocation_gates_time),
-                'write_gates':      torch.stack(write_gates_time),
-                'read_weights':     torch.stack(read_weights_time),
-                'write_weights':    torch.stack(write_weights_time),
-                'usage_vectors':    torch.stack(usage_vectors_time)
-            }
-            self.net_data += [(packed_memory_view, mem)]
+        packed_memory_view = {
+            'free_gates':       torch.stack(free_gates_time),
+            'allocation_gates': torch.stack(allocation_gates_time),
+            'write_gates':      torch.stack(write_gates_time),
+            'read_weights':     torch.stack(read_weights_time),
+            'write_weights':    torch.stack(write_weights_time),
+            'usage_vectors':    torch.stack(usage_vectors_time)
+        }
+        
 
         return packed_output, controller_state, mem  # _memory_view
 
@@ -162,10 +157,10 @@ class DNC(nn.Module):
         return mem
 
     def make_init_hidden(self, inp, l1_sz, l2_sz=None):
-        h0 = Variable(inp.data.new(inp.size(0), l1_sz).float().zero_(),
+        h0 = Variable(inp.data.new(inp.size(1), l1_sz).float().zero_(),
                       requires_grad=False)
         if l2_sz is not None:
-            h1 = Variable(inp.data.new(inp.size(0), l2_sz).float().zero_(),
+            h1 = Variable(inp.data.new(inp.size(1), l2_sz).float().zero_(),
                           requires_grad=False)
             return ((h0, h0.clone()), (h1, h1.clone()))
         return (h0, h0.clone())

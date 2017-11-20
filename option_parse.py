@@ -35,7 +35,7 @@ def get_parser():
     parser.add_argument('-attn', type=int, default=1)
 
     # Optimization options
-    parser.add_argument('-batch_size', type=int, default=32,
+    parser.add_argument('-batch_size', type=int, default=64,
                         help='Maximum batch size')
     parser.add_argument('-max_generator_batches', type=int, default=32,
                         help="""Maximum batches of words in a sequence to run

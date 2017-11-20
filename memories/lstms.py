@@ -36,6 +36,19 @@ class LSTMseq(nn.Module):
             self.dropout = nn.Dropout(opt.dropout)
             self.forward = self.decode
 
+        elif mode == 'init_decode':
+            self.attn = None
+            input_size = opt.word_vec_size
+            self.input_feed = opt.input_feed
+            if self.input_feed:
+                input_size += opt.word_vec_size
+
+            h1_size = opt.word_vec_size  # int(opt.rnn_size * 2)
+            self.rnn = StackedLSTM(1, input_size,[h1_size], opt.dropout)
+            self.dropout = nn.Dropout(opt.dropout)
+            self.forward = self.decode
+
+    
     def encode(self, input):
         return self.rnn(input)
 

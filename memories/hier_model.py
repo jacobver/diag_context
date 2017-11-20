@@ -23,23 +23,109 @@ class HierModel(nn.Module):
                            dropout=opt.dropout,
                            bidirectional=1)
 
-        if mem[0] == 'lstm':
-            self.utt_encoder =  bi_lstm(2)
-        elif mem[0] == 'dnc':
+        # nn hierarchical models
+        if opt.mem == 'dnc_dnc':
             opt.dropout = .6
-            self.utt_encoder = dnc.DNC(opt, 'encode')
-
-        if mem[1] == 'lstm':
-            self.diag_encoder =  bi_lstm(2)
-            self.decoder = lstms.LSTMseq(opt, dicts, 'decode')
-        elif mem[1] == 'dnc':
-            opt.dropout = .6
-            self.diag_encoder =  dnc.DNC(opt, 'encode')
+            opt.attn = 0
+            self.diag_encoder = dnc.DNC(opt, 'encode')
             self.decoder = dnc.DNC(opt, 'decode')
+            
+        elif opt.mem == 'baseline':
+            self.diag_encoder = bi_lstm(2)
+            self.decoder = lstms.LSTMseq(opt, dicts, 'decode')
+
+        elif opt.mem == 'reasoning_nse':
+            self.utt_encoder = bi_lstm(1)
+            self.utt_decoder = lstms.LSTMseq(opt, dicts, 'init_decode')
+            self.context_mem = bi_lstm(2)
+            self.decoder = reasoning_nse.Tweak(opt)
+
+        # hierarchical models
+        else:
+            mem = opt.mem.split('_')
+            
+            if mem[0] == 'lstm':
+                self.utt_encoder =  bi_lstm(2)
+            elif mem[0] == 'dnc':
+                opt.dropout = .6
+                self.utt_encoder = dnc.DNC(opt, 'encode')
+
+            if mem[1] == 'lstm':
+                self.diag_encoder =  bi_lstm(2)
+                self.decoder = lstms.LSTMseq(opt, dicts, 'decode')
+            elif mem[1] == 'dnc':
+                opt.dropout = .6
+                self.diag_encoder =  dnc.DNC(opt, 'encode')
+                self.decoder = dnc.DNC(opt, 'decode')
 
         self.forward = eval('self.' + opt.mem)
         self.generate = False
 
+
+    def reasoning_nse(self, input):
+        src_utts = input[0]
+        src_cont = input[1]
+        dacts =  input[2]
+        tgt_utt = input[3][:-1]
+
+
+        '''
+        generate 'memories' and  states by putting context and last utt through own bi_lstm
+        '''
+        emb_cont = self.embed_txt(src_cont)
+        cont_M, cont_state = self.context_mem(emb_cont)
+
+        cont_state = (self.fix_enc_hidden(cont_state[0])[1],
+                      self.fix_enc_hidden(cont_state[1])[1])
+
+        '''
+        run simple encoder decoder to initialize utt_M
+        '''
+        emb_utt = self.embed_txt(src_utts[-1])
+        context, enc_hid = self.utt_encoder(emb_utt)
+        enc_hid = (self.fix_enc_hidden(enc_hid[0]),
+                   self.fix_enc_hidden(enc_hid[1]))
+        init_output = self.make_init_decoder_output(context[0])
+        tgt = self.embed_txt(tgt_utt)
+        utt_M, utt_state, _ = self.utt_decoder(tgt, enc_hid,
+                                               context, init_output)
+        
+        '''
+        set masks 
+        '''
+        u_mask = torch.sum(utt_M, dim=2).eq(Constants.PAD).transpose(0,1)
+        c_mask = src_cont.eq(Constants.PAD).transpose(0,1)
+        self.decoder.apply_mask(u_mask, c_mask)
+
+        '''
+        do tweaking of initial output
+        '''
+        outputs, read_locs = self.decoder(
+            utt_M.transpose(0, 1), (utt_state[0].squeeze(),utt_state[1].squeeze()),
+            cont_M.transpose(0, 1), cont_state)
+
+        return outputs #, read_locs
+
+    def baseline(self,input):
+
+        src_utts = input[0]
+        src_cont = input[1]
+        dacts =  input[2]
+        tgt_utt = input[3][:-1]
+
+        emb_cont = self.embed_txt(src_cont)
+        context, hidden = self.diag_encoder(emb_cont)
+
+        init_output = self.make_init_decoder_output(context[0])
+
+        hidden = (self.fix_enc_hidden(hidden[0]),
+                  self.fix_enc_hidden(hidden[1]))
+
+        tgt = self.embed_txt(tgt_utt)
+        out, dec_hidden, _attn = self.decoder(tgt, hidden,
+                                              context, init_output)
+        return out
+        
     def lstm_lstm(self, input):
 
         src_utts = input[0]
@@ -96,6 +182,29 @@ class HierModel(nn.Module):
         emb_out =self.embed_txt(tgt_utt)
         outputs, dec_hidden, M = self.decoder(
             emb_out, utt_hidden, M, utt_states, diag_hidden[1][0])
+
+        return outputs
+
+    def dnc_dnc(self, input):
+
+        src_utts = input[0]
+        src_cont = input[1]
+        dacts =  input[2]
+        tgt_utt = input[3][:-1]
+
+        # produce dialogue states
+        init_hidden =  self.diag_encoder.make_init_hidden(
+                src_utts[0], *self.diag_encoder.rnn_sz)
+
+        M = self.diag_encoder.make_init_M(src_utts.size(2))
+
+        emb_cont = self.embed_txt(src_cont)
+        #print( ' emb_cont_size : : '+str(emb_cont.size()))
+        diag_states, diag_hidden, M = self.diag_encoder(emb_cont,init_hidden, M)
+
+        emb_out =self.embed_txt(tgt_utt)
+        outputs, dec_hidden, M = self.decoder(
+            emb_out, diag_hidden, M, None, self.make_init_decoder_output(emb_out[0]))
 
         return outputs
 

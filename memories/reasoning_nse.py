@@ -138,7 +138,7 @@ class Tweak(nn.Module):
 
         self.write = Write(opt.rnn_size, opt.dropout_nse)
 
-        self.rewrite_n = 5
+        self.rewrite_n = 10
         
     def apply_mask(self, u_mask, c_mask):
         self.read.masks = {'u': u_mask, 'c': c_mask}
@@ -146,12 +146,9 @@ class Tweak(nn.Module):
 
     def forward(self, utt, utt_state, cont, cont_state):
 
-        #print( '\n === tweaking === ')
-        #print(' utt size : '+ str(utt.size()))
-        #print(' cont size : '+ str(cont.size()))
         hr = utt_state
         utt_state = utt_state[0]
-
+        
         hw = cont_state
         cont_state = cont_state[0]
 
@@ -169,4 +166,4 @@ class Tweak(nn.Module):
 
             tweak -= 1
 
-        return utt.transpose(0, 1).contiguous(), (torch.stack(utt_locs),torch.stack(cont_locs))
+        return utt.transpose(0,1).contiguous(), (torch.stack(utt_locs),torch.stack(cont_locs))

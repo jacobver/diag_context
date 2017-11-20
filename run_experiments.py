@@ -64,12 +64,28 @@ def lstm_dnc():
     opt.mem_slots = 40
     experiment(opt)
 
+def dnc_dnc():
+    opt.attn = 1
+    opt.keys = 1
+    opt.mem = 'lstm_dnc'
+    opt.mem_size = 100
+    opt.mem_slots = 40
+    experiment(opt)
 
 def lstm_lstm():
     opt.mem = 'lstm_lstm'
     opt.attn = 1
     experiment(opt)
 
+def baseline():
+    opt.mem = 'baseline'
+    opt.attn = 1
+    experiment(opt)
+
+def reasoning_nse():
+    opt.mem = 'resoning_nse'
+    opt.attn = 0
+    experiment(opt)
 
 
 
@@ -91,5 +107,8 @@ if __name__ == "__main__":
             if context_size > 5:
                 opt.batch_size = 32
 
+            baseline()
             lstm_lstm()
             lstm_dnc()
+            dnc_dnc()
+            reasoning_nse()

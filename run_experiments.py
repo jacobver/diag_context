@@ -67,7 +67,7 @@ def lstm_dnc():
 def dnc_dnc():
     opt.attn = 1
     opt.keys = 1
-    opt.mem = 'lstm_dnc'
+    opt.mem = 'dnc_dnc'
     opt.mem_size = 100
     opt.mem_slots = 40
     experiment(opt)
@@ -83,7 +83,7 @@ def baseline():
     experiment(opt)
 
 def reasoning_nse():
-    opt.mem = 'resoning_nse'
+    opt.mem = 'reasoning_nse'
     opt.attn = 0
     experiment(opt)
 
@@ -99,7 +99,7 @@ if __name__ == "__main__":
     opt.gpus = [0]
     
     for n in range(3):
-        for context_size in [1, 2, 3, 4, 5, 6, 7, 8, 9]:
+        for context_size in [2, 3, 4, 5, 6, 7, 8, 9]:
             opt.data = '%s/data/switchboard/sw_tot_cs%d.train.pt' % (
                 workdir, context_size)
             opt.pre_word_vecs = '%s/data/switchboard/sw_tot.emb.pt' %workdir

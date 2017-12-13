@@ -108,7 +108,7 @@ def makeData(txt_file, da_file, dicts):
     print('Processing %s  ...' % (txt_file))
     txt_data = open(txt_file)
     da_data = open(da_file)
-
+    
     def process_line(wl,dl):
         wrds = wl.strip().split()
         da = dl.strip().split()
@@ -137,7 +137,7 @@ def makeData(txt_file, da_file, dicts):
                 wrds_diag += [words]
                 das_diag += [da]
 
-    data = {cs: {'src_utts': [], 'src_as_one': [], 'dacts': [],'tgt_utts': []}
+    data = {cs: {'src_utts': [], 'src_as_one': [], 'dacts': [],'tgt_utts': [], 'tgt_dacts':[]}
             for cs in range(1, opt.context_size)}
     utt_sizes = {cs: [] for cs in range(1, opt.context_size)}
 
@@ -173,6 +173,7 @@ def makeData(txt_file, da_file, dicts):
                     data[cs]['tgt_utts'] += [dicts['tgt'].convertToIdx(utt_cont[-1], onmt.Constants.UNK_WORD,
                                                                        onmt.Constants.BOS_WORD,
                                                                        onmt.Constants.EOS_WORD)]
+                    data[cs]['tgt_dacts'] += [dicts['das'].convertToIdx(das_cont[-1], onmt.Constants.UNK_WORD)]
 
     txt_data.close()
     da_data.close()
@@ -186,6 +187,7 @@ def makeData(txt_file, da_file, dicts):
             data[cs]['dacts'] = [data[cs]['dacts'][idx] for idx in perm]
             data[cs]['src_as_one'] = [data[cs]['src_as_one'][idx] for idx in perm]
             data[cs]['tgt_utts'] = [data[cs]['tgt_utts'][idx] for idx in perm]
+            data[cs]['tgt_dacts'] = [data[cs]['tgt_dacts'][idx] for idx in perm]
 
             #print('... sorting sentences by size')
             _, perm = torch.sort(torch.Tensor(utt_sizes[cs]))
@@ -193,6 +195,7 @@ def makeData(txt_file, da_file, dicts):
             data[cs]['dacts'] = [data[cs]['dacts'][idx] for idx in perm]
             data[cs]['src_as_one'] = [data[cs]['src_as_one'][idx] for idx in perm]
             data[cs]['tgt_utts'] = [data[cs]['tgt_utts'][idx] for idx in perm]
+            data[cs]['tgt_dacts'] = [data[cs]['tgt_dacts'][idx] for idx in perm]
 
     return data
 

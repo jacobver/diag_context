@@ -17,7 +17,7 @@ parser.add_argument('-mem', type=str, default='',
 def main(args):
 
     res = multi_file(args)
-    x = range(7)
+    x = range(9)
     for mem in res.keys():  # ,'dnc_lstm']:
         #print(' memory : ' + mem)
         y = [res[mem][xi]['min'] for xi in x]
@@ -28,7 +28,7 @@ def main(args):
         #plt.errorbar(x, y, e, linestyle='None', marker='^')
 
     plt.legend([k + ' (' + str(res[k]['nparams']) + ')' for k in res.keys()])
-    plt.ylim(18,30)
+    plt.ylim(0,50)
     plt.ylabel('ppl')
     plt.xlabel('context size')
     

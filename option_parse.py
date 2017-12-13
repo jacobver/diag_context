@@ -85,7 +85,10 @@ def get_parser():
                         help="""If a valid path is specified, then this will load
                         pretrained word embeddings on the encoder side.
                         See README for specific formatting instructions.""")
+    parser.add_argument('-dacts', type=int, default=0,
+                        help='if 1 use dialogue acts model')
 
+    
     # GPU
     parser.add_argument('-gpus', type=int,
                         help="Use CUDA on the listed devices.")

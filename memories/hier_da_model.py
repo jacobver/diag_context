@@ -8,10 +8,10 @@ import torch.nn as nn
 from torch.autograd import Variable
 
 
-class HierModel(nn.Module):
+class HierDAModel(nn.Module):
 
     def __init__(self, opt, dicts):
-        super(HierModel, self).__init__()
+        super(HierDAModel, self).__init__()
 
         self.set_embeddings(opt, dicts)
 
@@ -23,50 +23,65 @@ class HierModel(nn.Module):
                            dropout=opt.dropout,
                            bidirectional=1)
 
-        # nn hierarchical models
-        if opt.mem == 'dnc_dnc':
-            opt.dropout = .6
-            opt.attn = 0
-            self.diag_encoder = dnc.DNC(opt, 'encode')
-            self.decoder = dnc.DNC(opt, 'decode')
-            
-        elif opt.mem == 'baseline':
-            self.diag_encoder = bi_lstm(2)
-            self.decoder = lstms.LSTMseq(opt, dicts, 'decode')
-
-        elif opt.mem == 'reasoning_nse':
+        
+        if opt.mem == 'DAreasoning_nse':
             self.utt_encoder = bi_lstm(1)
             self.utt_decoder = lstms.LSTMseq(opt, dicts, 'init_decode')
             self.context_mem = bi_lstm(2)
             self.decoder = reasoning_nse.Tweak(opt)
-
-        # hierarchical models
+        if mem[1] == 'baseline':
+            self.merge = nn.Sequential(
+                nn.Linear(2 * opt.word_vec_size, opt.word_vec_size),
+                nn.Tanh())
+            self.diag_encoder = bi_lstm(2)
+            self.decoder = lstms.LSTMseq(opt, dicts, 'decode')
         else:
-            mem = opt.mem.split('_')
-            
             if mem[0] == 'lstm':
                 self.utt_encoder =  bi_lstm(2)
-            elif mem[0] == 'dnc':
-                opt.dropout = .6
-                self.utt_encoder = dnc.DNC(opt, 'encode')
+                self.merge = nn.Sequential(
+                    nn.Linear(2 * opt.word_vec_size, opt.word_vec_size),
+                    nn.Tanh())
 
-            if mem[1] == 'lstm':
+            if mem[1] == 'hierda':
                 self.diag_encoder =  bi_lstm(2)
                 self.decoder = lstms.LSTMseq(opt, dicts, 'decode')
-            elif mem[1] == 'dnc':
-                opt.dropout = .6
-                self.diag_encoder =  dnc.DNC(opt, 'encode')
-                self.decoder = dnc.DNC(opt, 'decode')
 
         self.forward = eval('self.' + opt.mem)
         self.generate = False
 
-    def reasoning_nse(self, input):
+    def da_baseline(self,input):
+
         src_utts = input[0]
         src_cont = input[1]
         dacts =  input[2]
-        tgt_utt = input[3][:-1]
+        tgt_dacts = input[3]
+        tgt_utt = input[4][:-1]
 
+        emb_cont = self.embed_txt(src_cont)
+        context, hidden = self.diag_encoder(emb_cont)
+
+        init_output = self.make_init_decoder_output(context[0])
+
+        hidden = (self.fix_enc_hidden(hidden[0]),
+                  self.fix_enc_hidden(hidden[1]))
+
+        tgt = self.embed_txt(tgt_utt)
+
+        emb_dact = self.embed_dact(tgt_dacts).squeeze()
+        dec_hidden = ((self.merge(torch.cat((hidden[0][0], emb_dact),1)),
+                       hidden[0][1]),
+                      hidden[1])
+        
+        out, dec_hidden, _attn = self.decoder(tgt, dec_hidden,
+                                              context, init_output)
+        return out
+
+    def DAreasoning_nse(self, input):
+        src_utts = input[0]
+        src_cont = input[1]
+        dacts =  input[2]
+        tgt_dact = input[3]
+        tgt_utt = input[4][:-1]
 
         '''
         generate 'memories' and  states by putting context and last utt through own bi_lstm
@@ -99,47 +114,37 @@ class HierModel(nn.Module):
         '''
         do tweaking of initial output
         '''
+        emb_dact = self.embed_dact(tgt_dact).squeeze()
         outputs, read_locs = self.decoder(
             utt_M.transpose(0, 1), (utt_state[0].squeeze(),utt_state[1].squeeze()),
-            cont_M.transpose(0, 1), cont_state)
+            cont_M.transpose(0, 1), cont_state, emb_dact)
 
-        return outputs, read_locs
-
-    def baseline(self,input):
-
-        src_utts = input[0]
-        src_cont = input[1]
-        dacts =  input[2]
-        tgt_utt = input[3][:-1]
-
-        emb_cont = self.embed_txt(src_cont)
-        context, hidden = self.diag_encoder(emb_cont)
-
-        init_output = self.make_init_decoder_output(context[0])
-
-        hidden = (self.fix_enc_hidden(hidden[0]),
-                  self.fix_enc_hidden(hidden[1]))
-
-        tgt = self.embed_txt(tgt_utt)
-        out, dec_hidden, _attn = self.decoder(tgt, hidden,
-                                              context, init_output)
-        return out
+        return outputs #, read_locs
 
     
-    def lstm_lstm(self, input):
+    def lstm_hierda(self, input):
 
         src_utts = input[0]
         src_cont = input[1]
         dacts =  input[2]
-        tgt_utt = input[3][:-1]
+        tgt_dact = input[3]
+        tgt_utt = input[4][:-1]
 
+
+        emb_dacts = self.embed_dact(dacts.squeeze())
         # produce encoded utterances, and keep last utterance hidden states for attention of LM
         enc_utts = []
-        for utt in src_utts.split(1):
+        for utt, emb_dact  in zip(src_utts.split(1), emb_dacts.split(1)):
             emb_utt = self.embed_txt(utt.squeeze())
             utt_states, utt_hidden = self.utt_encoder(emb_utt)
-            enc_utts += [self.fix_enc_hidden(utt_hidden[0])[1]] # add hidden from last layer
 
+            enc_utt = self.fix_enc_hidden(utt_hidden[0])[1]
+            # add embedded dialogue act 
+            enc_utt = self.merge(torch.cat([enc_utt,emb_dact.squeeze()],1))
+                                 
+            enc_utts += [enc_utt] 
+            
+        
         # produce dialogue states
         diag_states, diag_hidden = self.diag_encoder(torch.stack(enc_utts))
 
@@ -153,78 +158,6 @@ class HierModel(nn.Module):
 
         return outputs
 
-    def lstm_dnc(self, input):
-
-        src_utts = input[0]
-        src_cont = input[1]
-        dacts =  input[2]
-        tgt_utt = input[3][:-1]
-
-        # produce encoded utterances, and keep last utterance hidden states for attention of LM
-        enc_utts = []
-        for utt in src_utts.split(1):
-            emb_utt = self.embed_txt(utt.squeeze())
-            utt_states, utt_hidden = self.utt_encoder(emb_utt)
-            enc_utts += [self.fix_enc_hidden(utt_hidden[0])[1]] # add hidden from last layer
-
-        # produce dialogue states
-        init_hidden =  self.diag_encoder.make_init_hidden(
-                src_utts[0], *self.diag_encoder.rnn_sz)
-
-        #print( ' src_utts_size : : '+str(src_utts.size()))
-        M = self.diag_encoder.make_init_M(src_utts.size(2))
-
-        _, diag_hidden, M = self.diag_encoder(torch.stack(enc_utts),init_hidden, M)
-
-        utt_hidden = (self.fix_enc_hidden(utt_hidden[0]),
-                      self.fix_enc_hidden(utt_hidden[1]))
-        
-        emb_out =self.embed_txt(tgt_utt)
-        outputs, dec_hidden, M = self.decoder(
-            emb_out, utt_hidden, M, utt_states, diag_hidden[1][0])
-
-        return outputs
-
-    def dnc_dnc(self, input):
-
-        src_utts = input[0]
-        src_cont = input[1]
-        dacts =  input[2]
-        tgt_utt = input[3][:-1]
-
-        # produce dialogue states
-        init_hidden =  self.diag_encoder.make_init_hidden(
-                src_utts[0], *self.diag_encoder.rnn_sz)
-
-        M = self.diag_encoder.make_init_M(src_utts.size(2))
-
-        emb_cont = self.embed_txt(src_cont)
-        #print( ' emb_cont_size : : '+str(emb_cont.size()))
-        diag_states, diag_hidden, M = self.diag_encoder(emb_cont,init_hidden, M)
-
-        emb_out =self.embed_txt(tgt_utt)
-        outputs, dec_hidden, M = self.decoder(
-            emb_out, diag_hidden, M, None, self.make_init_decoder_output(emb_out[0]))
-
-        return outputs
-
-    def dnc_context_encoder(self, src_key):
-
-        def make_init_hidden():
-            return self.context_encoder.make_init_hidden(
-                src_key[0][0], *self.context_encoder.rnn_sz)
-
-        M = self.context_encoder.make_init_M(src_key.size(2))
-
-        encoded_cont = []
-
-        for cont_keys in src_key.split(1):
-            key_emb_in = self.embed_in(cont_keys.squeeze(0))
-            output, _, M = self.context_encoder(
-                key_emb_in, make_init_hidden(), M)
-            encoded_cont += [output[-1]]
-
-        return torch.stack(encoded_cont), M
 
     def make_init_decoder_output(self, example):
         return Variable(example.data.new(*example.size()).zero_(), requires_grad=False)
@@ -254,6 +187,9 @@ class HierModel(nn.Module):
             self.embed_txt.weight.data.copy_(pre_vecs)
             self.embed_txt.weight.requires_grad = False
 
+        if opt.dacts:
+            self.embed_dact = nn.Embedding(dicts['das'].size(), opt.word_vec_size,padding_idx=Constants.PAD)
+            
     def load_pretrained_vectors(self, opt):
         vecs = None
         if opt.pre_word_vecs is not None:

@@ -238,7 +238,7 @@ def main():
 
     print('Building model...')
 
-    model = memories.hier_model.HierModel(opt, dicts)
+    model = memories.hier_da_model.HierDAModel(opt, dicts)
 
     generator = nn.Sequential(
         nn.Linear(opt.word_vec_size, dicts['tgt'].size()),

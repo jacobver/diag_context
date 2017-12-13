@@ -16,6 +16,7 @@ class Dataset(object):
         assert len(self.dacts) == len(self.src_utts)
         if 'tgt_utts' in data:
             self.tgt = data['tgt_utts']
+            self.tgt_dacts = data['tgt_dacts']
             assert(len(self.src_utts) == len(self.tgt))
         else:
             self.tgt = None
@@ -64,6 +65,9 @@ class Dataset(object):
         if self.tgt:
             tgtBatch = self._batchify(
                 self.tgt[index * self.batchSize:(index + 1) * self.batchSize])
+            tgt_dacts_Batch = self._batchify(
+                self.tgt_dacts[index * self.batchSize:(index + 1) * self.batchSize])
+
         else:
             tgtBatch = None
 
@@ -76,7 +80,7 @@ class Dataset(object):
             b = Variable(b, volatile=self.volatile)
             return b
 
-        return wrap(src_utts_batch), wrap(src_cont_batch), wrap(dacts_batch), wrap(tgtBatch)
+        return wrap(src_utts_batch), wrap(src_cont_batch), wrap(dacts_batch), wrap(tgt_dacts_Batch), wrap(tgtBatch)
 
     def __len__(self):
         return self.numBatches

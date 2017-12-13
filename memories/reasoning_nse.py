@@ -17,7 +17,7 @@ class Read(nn.Module):
 
         self.masks = None
         self.mask = None
-
+        
     def attend(self, M, s):
 
         #print( '\n === attending === ')
@@ -131,20 +131,23 @@ class Tweak(nn.Module):
         super(Tweak, self).__init__()
 
         self.read = Read(opt.rnn_size, opt.dropout_nse)
+        n = 4 if opt.dacts else 3
         self.compose = nn.Sequential(
-            nn.Linear(3 * opt.rnn_size, opt.rnn_size),
+            nn.Linear(n * opt.rnn_size, opt.rnn_size),
             # nn.Linear(2 * opt.rnn_size, opt.rnn_size),
             nn.ReLU())
 
         self.write = Write(opt.rnn_size, opt.dropout_nse)
 
         self.rewrite_n = 10
+
+        self.include_dact = opt.dacts
         
     def apply_mask(self, u_mask, c_mask):
         self.read.masks = {'u': u_mask, 'c': c_mask}
         self.write.mask = u_mask
 
-    def forward(self, utt, utt_state, cont, cont_state):
+    def forward(self, utt, utt_state, cont, cont_state, dact=None):
 
         hr = utt_state
         utt_state = utt_state[0]
@@ -160,7 +163,12 @@ class Tweak(nn.Module):
             utt_locs += [utt_loc]
 
             cont_locs += [cont_loc]
-            read = self.compose(torch.cat((hr[0], utt_state, cont_state), 1))
+            if self.include_dact:
+                cattet = torch.cat((hr[0], utt_state, cont_state, dact), 1)
+            else:
+                cattet = torch.cat((hr[0], utt_state, cont_state), 1)
+                
+            read = self.compose(cattet)
 
             hw, utt = self.write(hw, cont_state, z, utt, read)
 

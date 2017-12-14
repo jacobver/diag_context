@@ -131,16 +131,16 @@ class HierDAModel(nn.Module):
         tgt_utt = input[4][:-1]
 
 
-        emb_dacts = self.embed_dact(dacts.squeeze())
         # produce encoded utterances, and keep last utterance hidden states for attention of LM
         enc_utts = []
-        for utt, emb_dact  in zip(src_utts.split(1), emb_dacts.split(1)):
+        for utt, dact  in zip(src_utts.split(1), dacts.split(1)):
             emb_utt = self.embed_txt(utt.squeeze())
             utt_states, utt_hidden = self.utt_encoder(emb_utt)
 
             enc_utt = self.fix_enc_hidden(utt_hidden[0])[1]
             # add embedded dialogue act 
-            enc_utt = self.merge(torch.cat([enc_utt,emb_dact.squeeze()],1))
+            emb_dact = self.embed_dact(dact.squeeze())
+            enc_utt = self.merge(torch.cat([enc_utt,emb_dact],1))
                                  
             enc_utts += [enc_utt] 
             
